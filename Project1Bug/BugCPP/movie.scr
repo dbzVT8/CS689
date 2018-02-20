@@ -1,0 +1,21 @@
+#!/bin/sh
+
+OUTPUT=movie.avi
+W=600
+H=400
+FPS=25
+
+for file in $( ls *.ppm ); do
+    if [ -e $file.jpg ]
+    then
+        echo Using $file
+    else
+        echo Converting $file
+        convert -quality 100 $file -trim $file.jpg
+    fi
+done
+
+#mencoder mf://*.jpg -mf w=$W:h=$H:fps=$FPS:type=jpg -ovc lavc -lavcopts vcodec=mpeg4:mbd=2:trell -oac copy -o $OUTPUT
+
+mencoder mf://*.jpg -mf w=$W:h=$H:fps=$FPS:type=jpg -ovc lavc -lavcopts vcodec=msmpeg4v2:mbd=2:trell -oac copy -o $OUTPUT
+ 
