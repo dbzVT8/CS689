@@ -33,6 +33,9 @@ public:
     
 protected:
     RigidBodySimulator *m_simulator;
+
+private:
+    std::vector<double> m_localVertices;
 };
 
 #endif
