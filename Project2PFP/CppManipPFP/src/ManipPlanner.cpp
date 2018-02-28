@@ -52,8 +52,8 @@ void ManipPlanner::ConfigurationMove(double allLinksDeltaTheta[])
     double totalForce = 0;
     double x_goal = m_manipSimulator ->GetGoalCenterX();
     double y_goal = m_manipSimulator ->GetGoalCenterY();
-    double numberOfLinks = m_manipSimulator ->GetNrLinks();
-    double numberOfObstacles = m_manipSimulator ->GetNrObstacles();
+    int numberOfLinks = m_manipSimulator ->GetNrLinks();
+    int numberOfObstacles = m_manipSimulator ->GetNrObstacles();
     double U[sizeof(allLinksDeltaTheta)];
     for(int i = 0; i < numberOfLinks; i++)
     {
@@ -83,17 +83,14 @@ void ManipPlanner::ConfigurationMove(double allLinksDeltaTheta[])
         force[0] = forceAtIndex.m_x;
         force[1] = forceAtIndex.m_y;
 
-        double jacobianTranspose[sizeof(allLinksDeltaTheta)][2];
-        for(int i = 0; i < sizeof(allLinksDeltaTheta); i++)
-        {
-            jacobianTranspose[i][0] = getDerivativeShortCut(j, i, m_manipSimulator, true);
-            jacobianTranspose[i][1] = getDerivativeShortCut(j, i, m_manipSimulator, false);
-        }
-
         for(int i = 0; i < numberOfLinks; i++)
         {
-            U[i] = U[i] + force[0] * jacobianTranspose[i][0] + force[1] * jacobianTranspose[i][1];
+            double jacobianTransposei0 = getDerivativeShortCut(j, i, m_manipSimulator, true);
+            double jacobianTransposei1 = getDerivativeShortCut(j, i, m_manipSimulator, false);
+            
+            U[i] = U[i] + force[0] * jacobianTransposei0 + force[1] * jacobianTransposei1;
         }
+
     }
 
     //make it a unit vector
@@ -111,7 +108,7 @@ void ManipPlanner::ConfigurationMove(double allLinksDeltaTheta[])
 
     for(int i = 0; i < numberOfLinks; i++)
     {
-        allLinksDeltaTheta[i] = U[i];
+        allLinksDeltaTheta[i] = U[i] * .1;
     }
 }
 
