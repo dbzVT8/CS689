@@ -1,6 +1,27 @@
 #include "RigidBodyPlanner.hpp"
 #include <iostream>
 
+void ToUnitVector(double *dx, double *dy, double *dtheta = NULL)
+{
+    if (dx != NULL && dy != NULL)
+    {
+        double tempX = *dx;
+        double tempY = *dy;
+        double tempTheta = 0;
+
+        if (dtheta != NULL)
+        {
+            tempTheta = *dtheta;
+        }
+
+        double magnitude = sqrt(pow(tempX, 2) +
+                                pow(tempY, 2) + pow(tempTheta, 2));
+        *dx = 1/magnitude * tempX;
+        *dy = 1/magnitude * tempY;
+        *dtheta = 1/magnitude * tempTheta;
+    }
+}
+
 RigidBodyPlanner::RigidBodyPlanner(RigidBodySimulator * const simulator)
 {
     m_simulator = simulator;   
@@ -47,6 +68,7 @@ RigidBodyMove RigidBodyPlanner::ConfigurationMove(void)
 
         double force_jx = force_jx_att + force_jx_rep;
         double force_jy = force_jy_att + force_jy_rep;
+        ToUnitVector(&force_jx, &force_jy);
 
         double xj = m_localVertices[j];
         double yj = m_localVertices[j+1];
@@ -60,10 +82,12 @@ RigidBodyMove RigidBodyPlanner::ConfigurationMove(void)
                          (force_jy * del_delTheta_rjw_y);
     }
 
-    double alpha = 0.001;
+    ToUnitVector(&move.m_dx, &move.m_dy, &move.m_dtheta);
+    double alpha = 0.1;
+    double beta = 0.01;
     move.m_dx *= alpha;
     move.m_dy *= alpha;
-    move.m_dtheta *= alpha;
+    move.m_dtheta *= beta;
 
     return move;
 }
