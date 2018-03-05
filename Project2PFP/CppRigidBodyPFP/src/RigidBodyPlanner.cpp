@@ -1,24 +1,38 @@
 #include "RigidBodyPlanner.hpp"
 #include <iostream>
 
-void ToUnitVector(double *dx, double *dy, double *dtheta = NULL)
+double GetVectorMagnitude(const double &dx, const double &dy, const double &dz = 0)
 {
-    if (dx != NULL && dy != NULL)
+    return sqrt(dx*dx + dy*dy + dz*dz);
+}
+
+double GetDistBetweenPoints(const double &a_x, const double &a_y,
+                            const double &b_x, const double &b_y)
+{
+    return sqrt(pow(b_y - a_y, 2) + pow(b_x - a_x, 2));
+}
+
+void ToUnitVector(double *dx, double *dy, double *dz = 0)
+{
+    if (dx != 0 && dy != 0)
     {
         double tempX = *dx;
         double tempY = *dy;
-        double tempTheta = 0;
+        double tempZ = 0;
 
-        if (dtheta != NULL)
+        if (dz != 0)
         {
-            tempTheta = *dtheta;
+            tempZ = *dz;
         }
 
-        double magnitude = sqrt(pow(tempX, 2) +
-                                pow(tempY, 2) + pow(tempTheta, 2));
+        double magnitude = GetVectorMagnitude(tempX, tempY, tempZ);
         *dx = 1/magnitude * tempX;
         *dy = 1/magnitude * tempY;
-        *dtheta = 1/magnitude * tempTheta;
+
+        if (dz != 0)
+        {
+            *dz = 1/magnitude * tempZ;
+        }
     }
 }
 
@@ -43,9 +57,7 @@ RigidBodyPlanner::~RigidBodyPlanner(void)
     //do not delete m_simulator  
 }
 
-
 RigidBodyMove RigidBodyPlanner::ConfigurationMove(void)
-    
 {
     RigidBodyMove move;
 
@@ -53,8 +65,13 @@ RigidBodyMove RigidBodyPlanner::ConfigurationMove(void)
     {
         double rjw_x = m_simulator->GetRobotVertices()[j];
         double rjw_y = m_simulator->GetRobotVertices()[j+1];
-        double force_jx_att = m_simulator->GetGoalCenterX() - rjw_x; 
-        double force_jy_att = m_simulator->GetGoalCenterY() - rjw_y;
+        double distToGoal = GetDistBetweenPoints(rjw_x, rjw_y,
+            m_simulator->GetGoalCenterX(), m_simulator->GetGoalCenterY());
+        double force_jx_att = 1/distToGoal * (m_simulator->GetGoalCenterX() - rjw_x); 
+        double force_jy_att = 1/distToGoal * (m_simulator->GetGoalCenterY() - rjw_y);
+        //double force_jx_att = (m_simulator->GetGoalCenterX() - rjw_x); 
+        //double force_jy_att = (m_simulator->GetGoalCenterY() - rjw_y);
+        //ToUnitVector(&force_jx_att, &force_jy_att);
         double force_jx_rep = 0;
         double force_jy_rep = 0;
 
@@ -62,8 +79,14 @@ RigidBodyMove RigidBodyPlanner::ConfigurationMove(void)
         {
             Point obstacle =
                 m_simulator->ClosestPointOnObstacle(i, rjw_x, rjw_y);
-            force_jx_rep += (rjw_x - obstacle.m_x);
-            force_jy_rep += (rjw_y - obstacle.m_y);
+            double obstacleDist = GetDistBetweenPoints(rjw_x, rjw_y,
+                obstacle.m_x, obstacle.m_y);
+
+            if (obstacleDist < 5)
+            {
+                force_jx_rep += 1/obstacleDist * (rjw_x - obstacle.m_x);
+                force_jy_rep += 1/obstacleDist * (rjw_y - obstacle.m_y);
+            }
         }
 
         double force_jx = force_jx_att + force_jx_rep;
@@ -82,12 +105,21 @@ RigidBodyMove RigidBodyPlanner::ConfigurationMove(void)
                          (force_jy * del_delTheta_rjw_y);
     }
 
-    ToUnitVector(&move.m_dx, &move.m_dy, &move.m_dtheta);
-    double alpha = 0.1;
-    double beta = 0.01;
+    ToUnitVector(&move.m_dx, &move.m_dy);
+    double alpha = 0.05;
+    double epsilon = 0.0005;
+
+    if (move.m_dtheta > 0)
+    {
+        move.m_dtheta = epsilon;
+    }
+    else
+    {
+        move.m_dtheta = -epsilon;
+    }
+
     move.m_dx *= alpha;
     move.m_dy *= alpha;
-    move.m_dtheta *= beta;
 
     return move;
 }
