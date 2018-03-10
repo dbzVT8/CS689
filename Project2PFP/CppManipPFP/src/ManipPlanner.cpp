@@ -7,7 +7,10 @@ ManipPlanner::ManipPlanner(ManipSimulator * const manipSimulator)
 {
     m_manipSimulator = manipSimulator;  
     
-    numberOfIterations = 0;
+    m_attractiveFactor = 1.005;
+    m_repulsiveThreshold = 10;
+    m_numberOfIterations = 0;
+    m_stepSize = 0.05;
 }
 
 ManipPlanner::~ManipPlanner(void)
@@ -67,9 +70,39 @@ void ManipPlanner::ConfigurationMove(double allLinksDeltaTheta[])
     double currentX = m_manipSimulator ->GetLinkEndX(numberOfLinks - 1);
     double currentY = m_manipSimulator ->GetLinkEndY(numberOfLinks - 1);
     std::vector<double> U(numberOfLinks);
-    double attractiveFactor = 1.005;
-    double repulsiveThreshold = 10;
     
+    if(m_numberOfIterations < c_MaxNumberOfIterations)
+    {
+        m_numberOfIterations = m_numberOfIterations + 1;
+    }
+    else 
+    {
+        if(m_manipSimulator ->HasRobotReachedGoal()) //has reached goal but is still jerky
+        {
+            if(m_stepSize > .01)
+            {
+                m_stepSize = m_stepSize - .01;
+            }
+            m_numberOfIterations = 0;
+            cout << "Step Size: " << m_stepSize << endl;
+        }
+        else //arm is stuck
+        {
+            m_attractiveFactor = m_attractiveFactor * 1.1;
+            if(m_repulsiveThreshold > 1)
+            {
+                m_repulsiveThreshold = m_repulsiveThreshold - 1;
+            }
+                
+            m_numberOfIterations = 0;
+            cout << "Attractive Factor: " << m_attractiveFactor << endl;
+            cout << "Repulsive Threshold: " << m_repulsiveThreshold << endl;
+        }
+            cout << "" << endl;
+    }
+    
+
+
     for(int j = 0; j < numberOfLinks; j = j+1)
     {
         double x_joint = m_manipSimulator ->GetLinkEndX(j);
@@ -78,15 +111,15 @@ void ManipPlanner::ConfigurationMove(double allLinksDeltaTheta[])
         std::vector<double> force(2);
         if(j == numberOfLinks - 1)
         {
-            double attractiveX = (x_goal - x_joint) * attractiveFactor;
-            double attractiveY = (y_goal - y_joint) * attractiveFactor;
-            std::vector<double> repulsiveForce = getRepulsiveForce(j, numberOfObstacles, m_manipSimulator, repulsiveThreshold);
+            double attractiveX = (x_goal - x_joint) * m_attractiveFactor;
+            double attractiveY = (y_goal - y_joint) * m_attractiveFactor;
+            std::vector<double> repulsiveForce = getRepulsiveForce(j, numberOfObstacles, m_manipSimulator, m_repulsiveThreshold);
             force[0] = repulsiveForce[0] + attractiveX;
             force[1] = repulsiveForce[1] + attractiveY;
         }
         else
         {
-             std::vector<double> repulsiveForce = getRepulsiveForce(j, numberOfObstacles,  m_manipSimulator, repulsiveThreshold);
+             std::vector<double> repulsiveForce = getRepulsiveForce(j, numberOfObstacles,  m_manipSimulator, m_repulsiveThreshold);
              force[0] = repulsiveForce[0];
              force[1] = repulsiveForce[1];
         }
@@ -105,7 +138,7 @@ void ManipPlanner::ConfigurationMove(double allLinksDeltaTheta[])
 
     for(int i = 0; i < numberOfLinks; i = i+1)
     {
-        allLinksDeltaTheta[i] = U[i] * 0.05;
+        allLinksDeltaTheta[i] = U[i] * m_stepSize;
     }
 }
 
