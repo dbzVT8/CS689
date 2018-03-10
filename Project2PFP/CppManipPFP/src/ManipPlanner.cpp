@@ -84,7 +84,6 @@ void ManipPlanner::ConfigurationMove(double allLinksDeltaTheta[])
                 m_stepSize = m_stepSize - .01;
             }
             m_numberOfIterations = 0;
-            cout << "Step Size: " << m_stepSize << endl;
         }
         else //arm is stuck
         {
@@ -94,10 +93,15 @@ void ManipPlanner::ConfigurationMove(double allLinksDeltaTheta[])
                 m_repulsiveThreshold = m_repulsiveThreshold - 1;
             }
                 
+            if(m_stepSize > .01)
+            {
+                m_stepSize = m_stepSize - .01;
+            }
             m_numberOfIterations = 0;
+        }
+            cout << "Step Size: " << m_stepSize << endl;
             cout << "Attractive Factor: " << m_attractiveFactor << endl;
             cout << "Repulsive Threshold: " << m_repulsiveThreshold << endl;
-        }
             cout << "" << endl;
     }
     
