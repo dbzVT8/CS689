@@ -35,7 +35,7 @@ public:
  */
     void ConfigurationMove(double allLinksDeltaTheta[]);
     
-    static const int c_MaxNumberOfIterations = 50;    
+    static const int c_MaxNumberOfIterations = 100;    
 protected:    
     
     ManipSimulator  *m_manipSimulator;

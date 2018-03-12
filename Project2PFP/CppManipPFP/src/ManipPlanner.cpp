@@ -40,7 +40,7 @@ double getDistanceBetweenPoints(double x1, double y1, double x2, double y2)
     return sqrt(pow(x2 - x1, 2) + pow(y2 - y1,2));
 }
 
-std::vector<double> getRepulsiveForce(int joint, int numberOfObstacles, ManipSimulator * const manipSimulator, int distanceThreshold)
+std::vector<double> getRepulsiveForce(int joint, int numberOfObstacles, ManipSimulator * const manipSimulator, double distanceThreshold)
 {
     std::vector<double> sumOfRep(2);
     double xJoint = manipSimulator ->GetLinkEndX(joint);
@@ -51,8 +51,8 @@ std::vector<double> getRepulsiveForce(int joint, int numberOfObstacles, ManipSim
         double distanceToObstacle = getDistanceBetweenPoints(p.m_x, p.m_y, xJoint, yJoint);
         if(abs(distanceToObstacle) < distanceThreshold)
         {
-            double x = (xJoint - p.m_x);
-            double y = (yJoint - p.m_y);
+            double x = (xJoint - p.m_x) * 20/(distanceToObstacle);
+            double y = (yJoint - p.m_y) * 20/(distanceToObstacle);
             sumOfRep[0] = (sumOfRep[0] + x);
             sumOfRep[1] = (sumOfRep[1] + y);
         }
@@ -81,21 +81,25 @@ void ManipPlanner::ConfigurationMove(double allLinksDeltaTheta[])
         {
             if(m_stepSize > .01)
             {
-                m_stepSize = m_stepSize - .01;
+                m_stepSize = m_stepSize * .9;
             }
             m_numberOfIterations = 0;
         }
         else //arm is stuck
         {
-            m_attractiveFactor = m_attractiveFactor * 1.1;
-            if(m_repulsiveThreshold > 1)
+            if(m_attractiveFactor < 3)
             {
-                m_repulsiveThreshold = m_repulsiveThreshold - 1;
+                m_attractiveFactor = m_attractiveFactor * 1.2;
+            }
+
+            if(m_repulsiveThreshold > 1.5)
+            {
+                m_repulsiveThreshold = m_repulsiveThreshold  * .9;
             }
                 
             if(m_stepSize > .01)
             {
-                m_stepSize = m_stepSize - .01;
+                m_stepSize = m_stepSize * .9;
             }
             m_numberOfIterations = 0;
         }
