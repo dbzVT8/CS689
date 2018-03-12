@@ -2,6 +2,7 @@
 #define RIGID_BODY_PLANNER_HPP_
 
 #include "RigidBodySimulator.hpp"
+#include <list>
 
 struct RigidBodyMove
 {
@@ -34,8 +35,20 @@ public:
 protected:
     RigidBodySimulator *m_simulator;
 
+    void checkIfRobotStuck(const Point &rjw);
+    void addFakeObstacle(const Point &rjw,
+                         std::vector<double> rep_force);
+    int getFurthestVertexFromGoal();
+    std::vector<double> computeRepulsiveForce(const Point &rjw);
+
 private:
+    int m_vertexFurthestFromGoal;
+    double m_lastFurthestDistFromGoal;
     std::vector<double> m_localVertices;
+    bool m_robotStuck;
+    std::list<Point> m_lastTenMoves;
+    std::list<Point> m_fakeObstacles;
+    bool m_furthestVertexCalculated;
 };
 
 #endif
