@@ -103,10 +103,10 @@ void ManipPlanner::ConfigurationMove(double allLinksDeltaTheta[])
             }
             m_numberOfIterations = 0;
         }
-            cout << "Step Size: " << m_stepSize << endl;
-            cout << "Attractive Factor: " << m_attractiveFactor << endl;
-            cout << "Repulsive Threshold: " << m_repulsiveThreshold << endl;
-            cout << "" << endl;
+           // cout << "Step Size: " << m_stepSize << endl;
+           // cout << "Attractive Factor: " << m_attractiveFactor << endl;
+           // cout << "Repulsive Threshold: " << m_repulsiveThreshold << endl;
+           // cout << "" << endl;
     }
     
 
