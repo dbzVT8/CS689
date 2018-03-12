@@ -1,7 +1,21 @@
 #include "RigidBodyPlanner.hpp"
 #include <iostream>
 
+// Robot's step size for moves
 static const double STEP_SIZE = 0.05;
+
+// Repulsive scaling factor for real and fake obstacles. (higher = stronger force)
+static const int REAL_OBSTACLE_SENS = 15; 
+static const int FAKE_OBSTACLE_SENS = 5;
+
+// Num moves to track average distance traveled
+static const int NUM_MOVES_TO_TRACK = 20;
+
+// Num moves traveled before robot is considered stuck
+static const int NUM_MOVES_BEFORE_STUCK = 8;
+
+// Minimum distance for obstacles to be visible by robot
+static const int OBSTACLE_AWARENESS_DIST = 5;
 
 // Method that returns the magnitude of the given vector
 double GetVectorMagnitude(std::vector<double> v)
@@ -29,34 +43,13 @@ void ToUnitVector(std::vector<double> *v)
     {
         v->at(i) *= 1/mag;
     }
-//    if (dx != 0 && dy != 0)
-//    {
-//        double tempX = *dx;
-//        double tempY = *dy;
-//        double tempZ = 0;
-//
-//        if (dz != 0)
-//        {
-//            tempZ = *dz;
-//        }
-//
-//        double magnitude = GetVectorMagnitude(tempX, tempY, tempZ);
-//        *dx = 1/magnitude * tempX;
-//        *dy = 1/magnitude * tempY;
-//
-//        if (dz != 0)
-//        {
-//            *dz = 1/magnitude * tempZ;
-//        }
-//    }
 }
 
 /* Constructor
    @param simulator
 */
 RigidBodyPlanner::RigidBodyPlanner(RigidBodySimulator * const simulator) :
-    m_simulator(simulator), m_vertexFurthestFromGoal(0),
-    m_lastFurthestDistFromGoal(0), m_robotStuck(false),
+    m_simulator(simulator), m_vertexFurthestFromGoal(0), m_robotStuck(false),
     m_furthestVertexCalculated(false)
 {
     // Calculate and store local coordinates
@@ -145,16 +138,7 @@ RigidBodyMove RigidBodyPlanner::ConfigurationMove(void)
     move_xy[1] = move.m_dy;
     ToUnitVector(&move_xy);
     double thetaStep = 0.0005;
-
-    if (move.m_dtheta > 0)
-    {
-        move.m_dtheta = thetaStep;
-    }
-    else
-    {
-        move.m_dtheta = -thetaStep;
-    }
-
+    move.m_dtheta > 0 ? move.m_dtheta = thetaStep : move.m_dtheta = -thetaStep;
     move.m_dx *= STEP_SIZE;
     move.m_dy *= STEP_SIZE;
 
@@ -167,7 +151,7 @@ RigidBodyMove RigidBodyPlanner::ConfigurationMove(void)
         Point rjw = {m_simulator->GetRobotVertices()[j],
                      m_simulator->GetRobotVertices()[j+1]};
         addFakeObstacle(rjw, force_rep);
-        m_lastTenMoves.clear();
+        m_averageMoves.clear();
         m_robotStuck = false;
         m_furthestVertexCalculated = false;
     }
@@ -186,15 +170,9 @@ std::vector<double> RigidBodyPlanner::computeRepulsiveForce(const Point &rjw)
     {
         Point obstacle =
             m_simulator->ClosestPointOnObstacle(i, rjw.m_x, rjw.m_y);
-        double obstacleDist = GetDistBetweenPoints(rjw.m_x, rjw.m_y,
-            obstacle.m_x, obstacle.m_y);
-
-        // Ignore any obstacles that are 5 units or more away
-        if (obstacleDist < 5)
-        {
-            force_j_rep[0] += 15/obstacleDist * (rjw.m_x - obstacle.m_x);
-            force_j_rep[1] += 15/obstacleDist * (rjw.m_y - obstacle.m_y);
-        }
+        std::vector<double> obst_rep_force = getObstacleRepForce(rjw, obstacle);
+        force_j_rep[0] += obst_rep_force[0];
+        force_j_rep[1] += obst_rep_force[1];
     }
 
     // For each fake obstacle, calculate it's repulsive force and add it
@@ -205,18 +183,36 @@ std::vector<double> RigidBodyPlanner::computeRepulsiveForce(const Point &rjw)
          it != m_fakeObstacles.end(); ++it)
     {
         Point obstacle = *it;
-        double obstacleDist = GetDistBetweenPoints(rjw.m_x, rjw.m_y,
-            obstacle.m_x, obstacle.m_y);
-
-        // Ignore any obstacles that are 5 units or more away
-        if (obstacleDist < 5)
-        {
-            force_j_rep[0] += 3/obstacleDist * (rjw.m_x - obstacle.m_x);
-            force_j_rep[1] += 3/obstacleDist * (rjw.m_y - obstacle.m_y);
-        }
+        std::vector<double> obst_rep_force = getObstacleRepForce(rjw, obstacle);
+        force_j_rep[0] += obst_rep_force[0];
+        force_j_rep[1] += obst_rep_force[1];
     }
 
     return force_j_rep;
+}
+
+/* Method to get the repulsive force of an obstacle
+   @param rjw global coordinates of a particular robot vertex
+   @param obstacle the position of the obstacle
+*/
+std::vector<double>
+   RigidBodyPlanner::getObstacleRepForce(const Point &rjw, const Point &obstacle)
+{
+    double obstacleDist = GetDistBetweenPoints(rjw.m_x, rjw.m_y,
+                                               obstacle.m_x, obstacle.m_y);
+    std::vector<double> rep_force(2,0);
+
+    // Ignore any obstacles that are OBSTACLE_AWARENESS_DIST  units or
+    // more away
+    if (obstacleDist < OBSTACLE_AWARENESS_DIST)
+    {
+        rep_force[0] += FAKE_OBSTACLE_SENS/
+                              obstacleDist * (rjw.m_x - obstacle.m_x);
+        rep_force[1] += FAKE_OBSTACLE_SENS/
+                              obstacleDist * (rjw.m_y - obstacle.m_y);
+    }
+
+   return rep_force;
 }
 
 /* Method to check whether the robot is stuck
@@ -227,26 +223,26 @@ void RigidBodyPlanner::checkIfRobotStuck(const Point &rjw)
     // If robot is not currently stuck and there are at least
     // 10 moves tallied, get the distance moved between the first
     // and 10th move.
-    if (!m_robotStuck && m_lastTenMoves.size() >= 10)
+    if (!m_robotStuck && m_averageMoves.size() >= NUM_MOVES_TO_TRACK)
     {
-        Point front = m_lastTenMoves.front();
-        Point back = m_lastTenMoves.back();
+        Point front = m_averageMoves.front();
+        Point back = m_averageMoves.back();
         double dist = GetDistBetweenPoints(front.m_x, front.m_y,
                                            back.m_x, back.m_y);
 
-        // If distance traveled is less than 6 out of 10 step sizes away,
-        // the robot is considered stuck
-        if (dist < 6*STEP_SIZE) {
+        // If distance traveled is less than NUM_MOVES_BEFORE_STUCK step sizes
+        // of NUM_MOVES_TO_TRACK away, the robot is considered stuck
+        if (dist < NUM_MOVES_BEFORE_STUCK*STEP_SIZE) {
             std::cout << "Robot stuck!" << std::endl;
             m_robotStuck = true;
         }
 
         // Remove first point to make room for next one
-        m_lastTenMoves.pop_front();
+        m_averageMoves.pop_front();
     }
 
     Point pt = {rjw.m_x, rjw.m_y};
-    m_lastTenMoves.push_back(pt);
+    m_averageMoves.push_back(pt);
 }
 
 /* Method to add a fake obstacle when the robot gets stuck

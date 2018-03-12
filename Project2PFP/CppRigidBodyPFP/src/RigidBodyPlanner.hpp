@@ -40,15 +40,17 @@ protected:
                          std::vector<double> rep_force);
     int getFurthestVertexFromGoal();
     std::vector<double> computeRepulsiveForce(const Point &rjw);
+    std::vector<double> getObstacleRepForce(const Point &rjw,
+                                            const Point &obstacle);
 
 private:
-    int m_vertexFurthestFromGoal;
-    double m_lastFurthestDistFromGoal;
-    std::vector<double> m_localVertices;
-    bool m_robotStuck;
-    std::list<Point> m_lastTenMoves;
-    std::list<Point> m_fakeObstacles;
-    bool m_furthestVertexCalculated;
+    int m_vertexFurthestFromGoal; // The robot vertex furthest from goal
+    std::vector<double> m_localVertices; // The robot's local vertices
+    bool m_robotStuck; // Designates whether robot is stuck
+    std::list<Point> m_averageMoves; // List of moves to average dist traveled
+    std::list<Point> m_fakeObstacles; // List of fake obstacles
+    bool m_furthestVertexCalculated; // Designates whether furthest vertex from
+                                     // goal has been calculated after being stuck
 };
 
 #endif
