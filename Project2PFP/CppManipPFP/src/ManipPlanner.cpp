@@ -70,7 +70,7 @@ void ManipPlanner::ConfigurationMove(double allLinksDeltaTheta[])
     double currentX = m_manipSimulator ->GetLinkEndX(numberOfLinks - 1);
     double currentY = m_manipSimulator ->GetLinkEndY(numberOfLinks - 1);
     std::vector<double> U(numberOfLinks);
-    
+    double distanceToGoal = getDistanceBetweenPoints(currentX, currentY, x_goal, y_goal);
     if(m_numberOfIterations < c_MaxNumberOfIterations)
     {
         m_numberOfIterations = m_numberOfIterations + 1;
@@ -119,8 +119,8 @@ void ManipPlanner::ConfigurationMove(double allLinksDeltaTheta[])
         std::vector<double> force(2);
         if(j == numberOfLinks - 1)
         {
-            double attractiveX = (x_goal - x_joint) * m_attractiveFactor;
-            double attractiveY = (y_goal - y_joint) * m_attractiveFactor;
+            double attractiveX = (x_goal - x_joint) * (m_attractiveFactor/distanceToGoal);
+            double attractiveY = (y_goal - y_joint) * (m_attractiveFactor/distanceToGoal);
             std::vector<double> repulsiveForce = getRepulsiveForce(j, numberOfObstacles, m_manipSimulator, m_repulsiveThreshold);
             force[0] = repulsiveForce[0] + attractiveX;
             force[1] = repulsiveForce[1] + attractiveY;
