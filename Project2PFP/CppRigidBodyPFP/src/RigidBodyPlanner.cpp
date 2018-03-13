@@ -233,7 +233,6 @@ void RigidBodyPlanner::checkIfRobotStuck(const Point &rjw)
         // If distance traveled is less than NUM_MOVES_BEFORE_STUCK step sizes
         // of NUM_MOVES_TO_TRACK away, the robot is considered stuck
         if (dist < NUM_MOVES_BEFORE_STUCK*STEP_SIZE) {
-            std::cout << "Robot stuck!" << std::endl;
             m_robotStuck = true;
         }
 
@@ -264,9 +263,6 @@ void RigidBodyPlanner::addFakeObstacle(const Point &rjw,
         obstacle.m_x = rjw.m_x + rep_force[0];
         obstacle.m_y = rjw.m_y + rep_force[1];
         m_fakeObstacles.push_back(obstacle);
-
-        std::cout << "Adding fake obstacle: (" << obstacle.m_x
-                  << "," << obstacle.m_y << ")" << std::endl;
     }
 }
 
