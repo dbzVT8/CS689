@@ -5,14 +5,14 @@
 static const double STEP_SIZE = 0.05;
 
 // Repulsive scaling factor for real and fake obstacles. (higher = stronger force)
-static const int REAL_OBSTACLE_SENS = 15; 
-static const int FAKE_OBSTACLE_SENS = 5;
+static const int REAL_OBSTACLE_SENS = 20; 
+static const int FAKE_OBSTACLE_SENS = 3;
 
 // Num moves to track average distance traveled
-static const int NUM_MOVES_TO_TRACK = 20;
+static const int NUM_MOVES_TO_TRACK = 30;
 
 // Num moves traveled before robot is considered stuck
-static const int NUM_MOVES_BEFORE_STUCK = 8;
+static const int NUM_MOVES_BEFORE_STUCK = 5;
 
 // Minimum distance for obstacles to be visible by robot
 static const int OBSTACLE_AWARENESS_DIST = 5;
@@ -140,7 +140,7 @@ RigidBodyMove RigidBodyPlanner::ConfigurationMove(void)
     move_xy[0] = move.m_dx;
     move_xy[1] = move.m_dy;
     ToUnitVector(&move_xy);
-    double thetaStep = 0.0005;
+    double thetaStep = 0.005;
     move.m_dtheta > 0 ? move.m_dtheta = thetaStep : move.m_dtheta = -thetaStep;
     move.m_dx *= STEP_SIZE;
     move.m_dy *= STEP_SIZE;
