@@ -36,14 +36,10 @@ public:
     void ConfigurationMove(double allLinksDeltaTheta[]);
     
     static const int c_MaxNumberOfIterations = 100;    
-
 protected:    
-    std::vector<double> getRepulsiveForce(int joint);
     
-private:
     ManipSimulator  *m_manipSimulator;
     double m_attractiveFactor;
-    double m_repulsiveFactor;
     double m_repulsiveThreshold;
     double m_numberOfIterations;
     double m_stepSize;

@@ -70,6 +70,9 @@ RigidBodyPlanner::~RigidBodyPlanner(void)
 RigidBodyMove RigidBodyPlanner::ConfigurationMove(void)
 {
     RigidBodyMove move;
+    move.m_dtheta = 0;
+    move.m_dx = 0;
+    move.m_dy = 0;
 
     // If the robot is stuck, calculate and save off the vertex furthest
     // away from the goal
