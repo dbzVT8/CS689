@@ -28,6 +28,16 @@ MotionPlanner::~MotionPlanner(void)
 	delete m_vertices[i];
 }
 
+double getDistanceBetweenPoints(double x1, double y1, double x2, double y2)
+{
+    return sqrt(pow(x2 - x1, 2) + pow(y2 - y1,2));
+}
+
+int getRandomInteger(int min, int max)
+{
+   return min + (rand() % static_cast<int>(max - min + 1));
+}
+
 
 void MotionPlanner::ExtendTree(const int    vid, 
 			       const double sto[])
@@ -51,6 +61,21 @@ void MotionPlanner::ExtendRRT(void)
     StartTime(&clk);
  
 //your code
+    double sto[2];
+    m_simulator ->SampleState(sto); //this isn't right. Need to re-write to be the way the teacher wants
+    int vid;
+    double shortestDistance = -1;
+    for(int i = 0; i < m_vertices.size(); i++)
+    {
+        double distance = getDistanceBetweenPoints(sto[0], sto[1], m_vertices[i] ->m_state[0], m_vertices[i] ->m_state[1]); 
+        if(shortestDistance == -1 || distance < shortestDistance)
+        {
+            vid = i;
+            shortestDistance = distance;
+        }
+    }
+    ExtendTree(vid, sto);
+//end code
     
     m_totalSolveTime += ElapsedTime(&clk);
 }
@@ -61,7 +86,23 @@ void MotionPlanner::ExtendEST(void)
     Clock clk;
     StartTime(&clk);
 
-//your code    
+    //your code
+    double sto[2];
+    m_simulator ->SampleState(sto); //this isn't right. Need to re-write to be the way the teacher wants
+    int vid;
+    std::vector<int> tempVertices;
+    for(int i = 0; i < m_vertices.size(); i++)
+    {
+       Vertex *v = m_vertices[i];
+       for(int j = 0; j < v ->m_nchildren; j++)
+       {
+           tempVertices.push_back(i);
+       }
+    }
+    vid = tempVertices[getRandomInteger(0, tempVertices.size())];
+    ExtendTree(vid, sto);
+//end code
+
     m_totalSolveTime += ElapsedTime(&clk);
 }
 
