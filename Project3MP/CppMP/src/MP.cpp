@@ -2,6 +2,7 @@
 #include "PseudoRandom.hpp"
 #include "MyTimer.hpp"
 #include <cstring>
+#include <iostream>
 
 MotionPlanner::MotionPlanner(Simulator * const simulator)
 {
@@ -56,16 +57,13 @@ int getRandomInteger(int min, int max)
    return min + (rand() % (max - min + 1));
 }
 
-// TODO(SDF): Not sure if this method is supposed to keep extending until
-// it gets to sto or only extend the tree by one vertex per call. Currently,
-// this method keeps going until an invalid step has occurred or the goal
-// is reached.
 void MotionPlanner::ExtendTree(const int vid, const double sto[])
 {
     // Get qNear state
     std::vector<double> qNear(2,0);
     qNear[0] = m_vertices[vid]->m_state[0];
     qNear[1] = m_vertices[vid]->m_state[1];
+    std::cout << "qNear: (" << qNear[0] << "," << qNear[1] << ")  -->  ";
 
     // Get step size vector in direction of sto
     double step = m_simulator->GetDistOneStep();
@@ -78,12 +76,16 @@ void MotionPlanner::ExtendTree(const int vid, const double sto[])
 
     bool done = false;
     std::vector<double> qNew = qNear;
+    double distToSto = getDistanceBetweenPoints(qNew[0], qNew[1],
+                                                sto[0], sto[1]); 
+    int counter = 0;
 
-// Should repeat? If so, uncomment while loop
-//    while (!done)
-//    {
+    while (!done && distToSto > step)
+    {
         qNew[0] += stateDir[0];
         qNew[1] += stateDir[1];
+        distToSto = getDistanceBetweenPoints(qNew[0], qNew[1],
+                                             sto[0], sto[1]);
 
         // Only add qNew to tree if it's a valid state
         m_simulator->SetRobotCenter(qNew[0], qNew[1]);
@@ -94,11 +96,14 @@ void MotionPlanner::ExtendTree(const int vid, const double sto[])
             // just add the vertex and keep going
             if (m_simulator->HasRobotReachedGoal())
             {
+                counter++;
                 AddVertex(qNew, vid, Vertex::TYPE_GOAL);
                 done = true;
+                std::cout << "Reached goal, ";
             }
             else
             {
+                counter++;
                 AddVertex(qNew, vid);
             }
         }
@@ -106,8 +111,16 @@ void MotionPlanner::ExtendTree(const int vid, const double sto[])
         {
             // Reached an invalid state, stop
             done = true;
+            std::cout << "Invalid state, ";
         }
-//    }
+    }
+
+    if (!done)
+    {
+        std::cout << "Reached STO, ";
+    }
+
+    std::cout << "added " << counter << " vertices." << std::endl;
 }
 
 void MotionPlanner::ExtendRandom(void)
