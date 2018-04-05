@@ -57,6 +57,11 @@ int getRandomInteger(int min, int max)
    return min + (rand() % (max - min + 1));
 }
 
+double getRandomDouble(double min, double max)
+{
+   return (max - min) * ( (double)rand() / (double)RAND_MAX ) + min;
+}
+
 void MotionPlanner::ExtendTree(const int vid, const double sto[])
 {
     // Get qNear state
@@ -123,12 +128,41 @@ void MotionPlanner::ExtendTree(const int vid, const double sto[])
     std::cout << "added " << counter << " vertices." << std::endl;
 }
 
+void getRandomState(Simulator * const simulator, double s[])
+{
+    int rand = getRandomInteger(1, 10);
+    if(rand == getRandomInteger(1, 10)) //get around goal region 10%
+    {
+    std::cout << "Around Goal" << std::endl;
+        double goalCenterX = simulator ->GetGoalCenterX();
+        double goalCenterY = simulator ->GetGoalCenterY();
+        double radius = simulator ->GetGoalRadius();
+        s[0] = getRandomDouble(goalCenterX - radius, goalCenterX + radius);
+        s[1] = getRandomDouble(goalCenterY - radius, goalCenterY + radius);
+    }
+    else //get random state 90%
+    {
+    std::cout << "Everywhere!" << std::endl;
+        simulator ->SampleState(s);
+    }
+    
+    std::cout << "sto[0] " << s[0] << std::endl;
+    std::cout << "sto[1] " << s[1] << std::endl;
+}
+
 void MotionPlanner::ExtendRandom(void)
 {
     Clock clk;
     StartTime(&clk);
 
 //your code
+    double sto[2];
+    getRandomState(m_simulator, sto);
+    
+    std::cout << "sto[0] " << sto[0] << std::endl;
+    std::cout << "sto[1] " << sto[1] << std::endl;
+    int vid = getRandomInteger(0, m_vertices.size() - 1);
+    ExtendTree(vid, sto);
 
     m_totalSolveTime += ElapsedTime(&clk);
 }
@@ -140,7 +174,8 @@ void MotionPlanner::ExtendRRT(void)
  
 //your code
     double sto[2];
-    m_simulator ->SampleState(sto); //this isn't right. Need to re-write to be the way the teacher wants
+    getRandomState(m_simulator, sto);
+
     int vid;
     double shortestDistance = -1;
     for(int i = 0; i < m_vertices.size(); i++)
@@ -166,7 +201,7 @@ void MotionPlanner::ExtendEST(void)
 
     //your code
     double sto[2];
-    m_simulator ->SampleState(sto); //this isn't right. Need to re-write to be the way the teacher wants
+    getRandomState(m_simulator, sto);
     int vid;
     std::vector<int> tempVertices;
     for(int i = 0; i < m_vertices.size(); i++)
@@ -177,7 +212,7 @@ void MotionPlanner::ExtendEST(void)
            tempVertices.push_back(i);
        }
     }
-    vid = tempVertices[getRandomInteger(0, tempVertices.size())];
+    vid = tempVertices[getRandomInteger(0, tempVertices.size() - 1)];
     ExtendTree(vid, sto);
 //end code
 
