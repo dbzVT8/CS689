@@ -45,7 +45,8 @@ protected:
 
     void GetPathFromInitToGoal(std::vector<int> *path) const;
 
-    void AddVertex(Vertex * const v);
+    void AddVertex(const std::vector<double> &state, int parent,
+                   int type = Vertex::TYPE_NONE);
 
     void ExtendTree(const int    vid,
 		    const double sto[]);

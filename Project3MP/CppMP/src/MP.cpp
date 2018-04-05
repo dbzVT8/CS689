@@ -7,14 +7,10 @@ MotionPlanner::MotionPlanner(Simulator * const simulator)
 {
     m_simulator = simulator;   
 
-    Vertex *vinit = new Vertex();
-
-    vinit->m_parent   = -1;   
-    vinit->m_nchildren= 0;    
-    vinit->m_state[0] = m_simulator->GetRobotCenterX();
-    vinit->m_state[1] = m_simulator->GetRobotCenterY();
-
-    AddVertex(vinit);
+    std::vector<double> robot(2, 0);
+    robot[0] = m_simulator->GetRobotCenterX();
+    robot[1] = m_simulator->GetRobotCenterY();
+    AddVertex(robot, -1);
     m_vidAtGoal = -1;
     m_totalSolveTime = 0;
 }
@@ -28,6 +24,28 @@ MotionPlanner::~MotionPlanner(void)
 	delete m_vertices[i];
 }
 
+// Method that returns the magnitude of the given vector
+double GetVectorMagnitude(const std::vector<double> &v)
+{
+    double sumOfSquares = 0;
+    for (int i=0; i<v.size(); ++i)
+    {
+        sumOfSquares += v[i]*v[i];
+    }
+    return sqrt(sumOfSquares);
+}
+
+// Method to convert a vector to unit length
+void ToUnitVector(std::vector<double> *v)
+{
+    double mag = GetVectorMagnitude(*v);
+
+    for (int i=0; i<v->size(); ++i)
+    {
+        v->at(i) *= 1/mag;
+    }
+}
+
 double getDistanceBetweenPoints(double x1, double y1, double x2, double y2)
 {
     return sqrt(pow(x2 - x1, 2) + pow(y2 - y1,2));
@@ -35,14 +53,61 @@ double getDistanceBetweenPoints(double x1, double y1, double x2, double y2)
 
 int getRandomInteger(int min, int max)
 {
-   return min + (rand() % static_cast<int>(max - min + 1));
+   return min + (rand() % (max - min + 1));
 }
 
-
-void MotionPlanner::ExtendTree(const int    vid, 
-			       const double sto[])
+// TODO(SDF): Not sure if this method is supposed to keep extending until
+// it gets to sto or only extend the tree by one vertex per call. Currently,
+// this method keeps going until an invalid step has occurred or the goal
+// is reached.
+void MotionPlanner::ExtendTree(const int vid, const double sto[])
 {
-//your code
+    // Get qNear state
+    std::vector<double> qNear(2,0);
+    qNear[0] = m_vertices[vid]->m_state[0];
+    qNear[1] = m_vertices[vid]->m_state[1];
+
+    // Get step size vector in direction of sto
+    double step = m_simulator->GetDistOneStep();
+    std::vector<double> stateDir(2, 0);
+    stateDir[0] = sto[0] - qNear[0];
+    stateDir[1] = sto[1] - qNear[1];
+    ToUnitVector(&stateDir);
+    stateDir[0] *= step;
+    stateDir[1] *= step;
+
+    bool done = false;
+    std::vector<double> qNew = qNear;
+
+// Should repeat? If so, uncomment while loop
+//    while (!done)
+//    {
+        qNew[0] += stateDir[0];
+        qNew[1] += stateDir[1];
+
+        // Only add qNew to tree if it's a valid state
+        m_simulator->SetRobotCenter(qNew[0], qNew[1]);
+
+        if (m_simulator->IsValidState())
+        {
+            // If robot reached the goal, add the vertex and stop. Otherwise,
+            // just add the vertex and keep going
+            if (m_simulator->HasRobotReachedGoal())
+            {
+                AddVertex(qNew, vid, Vertex::TYPE_GOAL);
+                done = true;
+            }
+            else
+            {
+                AddVertex(qNew, vid);
+            }
+        }
+        else
+        {
+            // Reached an invalid state, stop
+            done = true;
+        }
+//    }
 }
 
 void MotionPlanner::ExtendRandom(void)
@@ -51,7 +116,7 @@ void MotionPlanner::ExtendRandom(void)
     StartTime(&clk);
 
 //your code
-    
+
     m_totalSolveTime += ElapsedTime(&clk);
 }
 
@@ -117,14 +182,28 @@ void MotionPlanner::ExtendMyApproach(void)
     m_totalSolveTime += ElapsedTime(&clk);
 }
 
-
-void MotionPlanner::AddVertex(Vertex * const v)
+void MotionPlanner::AddVertex(const std::vector<double> &state, int type,
+                              int parent)
 {
-    if(v->m_type == Vertex::TYPE_GOAL)
-	m_vidAtGoal = m_vertices.size();
-    m_vertices.push_back(v); 
-    if(v->m_parent >= 0)
-	(++m_vertices[v->m_parent]->m_nchildren);
+    Vertex *vinit = new Vertex();
+
+    vinit->m_parent   = parent;   
+    vinit->m_state[0] = state[0];
+    vinit->m_state[1] = state[1];
+    vinit->m_type = type;
+    vinit->m_nchildren= 0;    
+
+    if(vinit->m_type == Vertex::TYPE_GOAL)
+    {
+	    m_vidAtGoal = m_vertices.size();
+    }
+
+    m_vertices.push_back(vinit); 
+
+    if(vinit->m_parent >= 0)
+    {
+	    (++m_vertices[vinit->m_parent]->m_nchildren);
+    }
 }
 
 void MotionPlanner::GetPathFromInitToGoal(std::vector<int> *path) const
@@ -136,12 +215,15 @@ void MotionPlanner::GetPathFromInitToGoal(std::vector<int> *path) const
     int i = m_vidAtGoal;
     do
     {
-	rpath.push_back(i);
-	i = m_vertices[i]->m_parent;	
+        rpath.push_back(i);
+        i = m_vertices[i]->m_parent;	
     } 
     while(i >= 0);
     
     path->clear();
+
     for(int i = rpath.size() - 1; i >= 0; --i)
-	path->push_back(rpath[i]);
+    {
+	    path->push_back(rpath[i]);
+    }
 }
