@@ -3,6 +3,7 @@
 #include "MyTimer.hpp"
 #include <cstring>
 #include <iostream>
+#include <unistd.h>
 
 MotionPlanner::MotionPlanner(Simulator * const simulator)
 {
@@ -14,6 +15,7 @@ MotionPlanner::MotionPlanner(Simulator * const simulator)
     AddVertex(robot, -1);
     m_vidAtGoal = -1;
     m_totalSolveTime = 0;
+    srand(time(NULL));
 }
 
 MotionPlanner::~MotionPlanner(void)
@@ -54,12 +56,7 @@ double getDistanceBetweenPoints(double x1, double y1, double x2, double y2)
 
 int getRandomInteger(int min, int max)
 {
-   return min + (rand() % (max - min + 1));
-}
-
-double getRandomDouble(double min, double max)
-{
-   return (max - min) * ( (double)rand() / (double)RAND_MAX ) + min;
+    return min + (rand() % (max - min + 1));
 }
 
 void MotionPlanner::ExtendTree(const int vid, const double sto[])
@@ -68,7 +65,6 @@ void MotionPlanner::ExtendTree(const int vid, const double sto[])
     std::vector<double> qNear(2,0);
     qNear[0] = m_vertices[vid]->m_state[0];
     qNear[1] = m_vertices[vid]->m_state[1];
-    std::cout << "qNear: (" << qNear[0] << "," << qNear[1] << ")  -->  ";
 
     // Get step size vector in direction of sto
     double step = m_simulator->GetDistOneStep();
@@ -79,53 +75,24 @@ void MotionPlanner::ExtendTree(const int vid, const double sto[])
     stateDir[0] *= step;
     stateDir[1] *= step;
 
-    bool done = false;
     std::vector<double> qNew = qNear;
-    double distToSto = getDistanceBetweenPoints(qNew[0], qNew[1],
-                                                sto[0], sto[1]); 
-    int counter = 0;
+    qNew[0] += stateDir[0];
+    qNew[1] += stateDir[1];
 
-    while (!done && distToSto > step)
+    m_simulator->SetRobotCenter(qNew[0], qNew[1]);
+
+    // Only add qNew to tree if it's a valid state (no collision)
+    if (m_simulator->IsValidState())
     {
-        qNew[0] += stateDir[0];
-        qNew[1] += stateDir[1];
-        distToSto = getDistanceBetweenPoints(qNew[0], qNew[1],
-                                             sto[0], sto[1]);
-
-        // Only add qNew to tree if it's a valid state
-        m_simulator->SetRobotCenter(qNew[0], qNew[1]);
-
-        if (m_simulator->IsValidState())
+        if (m_simulator->HasRobotReachedGoal())
         {
-            // If robot reached the goal, add the vertex and stop. Otherwise,
-            // just add the vertex and keep going
-            if (m_simulator->HasRobotReachedGoal())
-            {
-                counter++;
-                AddVertex(qNew, vid, Vertex::TYPE_GOAL);
-                done = true;
-                std::cout << "Reached goal, ";
-            }
-            else
-            {
-                counter++;
-                AddVertex(qNew, vid);
-            }
+            AddVertex(qNew, vid, Vertex::TYPE_GOAL);
         }
         else
         {
-            // Reached an invalid state, stop
-            done = true;
-            std::cout << "Invalid state, ";
+            AddVertex(qNew, vid);
         }
     }
-
-    if (!done)
-    {
-        std::cout << "Reached STO, ";
-    }
-
-    std::cout << "added " << counter << " vertices." << std::endl;
 }
 
 void getRandomState(Simulator * const simulator, double s[])
@@ -133,21 +100,16 @@ void getRandomState(Simulator * const simulator, double s[])
     int rand = getRandomInteger(1, 10);
     if(rand == getRandomInteger(1, 10)) //get around goal region 10%
     {
-    std::cout << "Around Goal" << std::endl;
         double goalCenterX = simulator ->GetGoalCenterX();
         double goalCenterY = simulator ->GetGoalCenterY();
         double radius = simulator ->GetGoalRadius();
-        s[0] = getRandomDouble(goalCenterX - radius, goalCenterX + radius);
-        s[1] = getRandomDouble(goalCenterY - radius, goalCenterY + radius);
+        s[0] = PseudoRandomUniformReal(goalCenterX - radius, goalCenterX + radius);
+        s[1] = PseudoRandomUniformReal(goalCenterY - radius, goalCenterY + radius);
     }
     else //get random state 90%
     {
-    std::cout << "Everywhere!" << std::endl;
         simulator ->SampleState(s);
     }
-    
-    std::cout << "sto[0] " << s[0] << std::endl;
-    std::cout << "sto[1] " << s[1] << std::endl;
 }
 
 void MotionPlanner::ExtendRandom(void)
@@ -155,12 +117,9 @@ void MotionPlanner::ExtendRandom(void)
     Clock clk;
     StartTime(&clk);
 
-//your code
     double sto[2];
     getRandomState(m_simulator, sto);
     
-    std::cout << "sto[0] " << sto[0] << std::endl;
-    std::cout << "sto[1] " << sto[1] << std::endl;
     int vid = getRandomInteger(0, m_vertices.size() - 1);
     ExtendTree(vid, sto);
 
@@ -172,7 +131,6 @@ void MotionPlanner::ExtendRRT(void)
     Clock clk;
     StartTime(&clk);
  
-//your code
     double sto[2];
     getRandomState(m_simulator, sto);
 
@@ -180,7 +138,9 @@ void MotionPlanner::ExtendRRT(void)
     double shortestDistance = -1;
     for(int i = 0; i < m_vertices.size(); i++)
     {
-        double distance = getDistanceBetweenPoints(sto[0], sto[1], m_vertices[i] ->m_state[0], m_vertices[i] ->m_state[1]); 
+        double distance = getDistanceBetweenPoints(sto[0], sto[1],
+                                                   m_vertices[i] ->m_state[0],
+                                                   m_vertices[i] ->m_state[1]);
         if(shortestDistance == -1 || distance < shortestDistance)
         {
             vid = i;
@@ -188,7 +148,6 @@ void MotionPlanner::ExtendRRT(void)
         }
     }
     ExtendTree(vid, sto);
-//end code
     
     m_totalSolveTime += ElapsedTime(&clk);
 }
@@ -202,17 +161,33 @@ void MotionPlanner::ExtendEST(void)
     //your code
     double sto[2];
     getRandomState(m_simulator, sto);
-    int vid;
-    std::vector<int> tempVertices;
+    std::vector<double> weights(m_vertices.size(), 0);
+    double weightSum = 0;
+
     for(int i = 0; i < m_vertices.size(); i++)
     {
-       Vertex *v = m_vertices[i];
-       for(int j = 0; j < v ->m_nchildren; j++)
-       {
-           tempVertices.push_back(i);
-       }
+        int numChildren = m_vertices[i]->m_nchildren;
+        weights[i] = 1.0 / (1.0 + numChildren);
+        weightSum += weights[i];
     }
-    vid = tempVertices[getRandomInteger(0, tempVertices.size() - 1)];
+
+
+    //TODO: rand should include 0 and go just up to weightSum but not including
+    double rand = PseudoRandomUniformReal(0, weightSum);
+    int vid = 0;
+
+    for (int i = 0; i < m_vertices.size(); i++)
+    {
+        int weight = weights[i];
+
+        if (rand < weights[i])
+        {
+            vid = i;
+            break;
+        }
+        rand -= weight;
+    }
+
     ExtendTree(vid, sto);
 //end code
 
@@ -230,8 +205,8 @@ void MotionPlanner::ExtendMyApproach(void)
     m_totalSolveTime += ElapsedTime(&clk);
 }
 
-void MotionPlanner::AddVertex(const std::vector<double> &state, int type,
-                              int parent)
+void MotionPlanner::AddVertex(const std::vector<double> &state, int parent,
+                              int type)
 {
     Vertex *vinit = new Vertex();
 
