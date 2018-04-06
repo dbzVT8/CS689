@@ -3,7 +3,6 @@
 #include "MyTimer.hpp"
 #include <cstring>
 #include <iostream>
-#include <unistd.h>
 
 MotionPlanner::MotionPlanner(Simulator * const simulator)
 {
@@ -171,22 +170,48 @@ void MotionPlanner::ExtendEST(void)
         weightSum += weights[i];
     }
 
-
     //TODO: rand should include 0 and go just up to weightSum but not including
     double rand = PseudoRandomUniformReal(0, weightSum);
-    int vid = 0;
+    std::cout << "Chosen rand (0-" << weightSum << "): " << rand;
+    int vid = -1;
+
+    //UNCOMMENT ARROW SECTIONS TO SELECT RANDOM STARTING POINT IN FOR LOOP
+    //int start = getRandomInteger(0, m_vertices.size() - 1);    <-------
 
     for (int i = 0; i < m_vertices.size(); i++)
     {
-        int weight = weights[i];
+        double weight = weights[i];
 
-        if (rand < weights[i])
+        if (rand < weight)
         {
             vid = i;
             break;
         }
         rand -= weight;
     }
+
+//    if (vid == -1)                                             <-------
+//    {
+//        for (int i = 0; i < start; i++)
+//        {
+//            double weight = weights[i];
+//
+//            if (rand < weight)
+//            {
+//                vid = i;
+//                break;
+//            }
+//            rand -= weight;
+//        }
+//    }
+
+    if (vid == -1)
+    {
+        std::cout << ", DID NOT BREAK";
+        vid == m_vertices.size() - 1;
+    }
+
+    std::cout << ", chose vid " << vid << " with " << m_vertices[vid]->m_nchildren << " children." << std::endl;
 
     ExtendTree(vid, sto);
 //end code
