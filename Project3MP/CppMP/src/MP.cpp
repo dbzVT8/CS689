@@ -14,7 +14,7 @@ MotionPlanner::MotionPlanner(Simulator * const simulator)
     AddVertex(robot, -1);
     m_vidAtGoal = -1;
     m_totalSolveTime = 0;
-    srand(time(NULL));
+    const double c_MIN_THRESHOLD = 2;
 }
 
 MotionPlanner::~MotionPlanner(void)
@@ -58,43 +58,66 @@ int getRandomInteger(int min, int max)
     return min + (rand() % (max - min + 1));
 }
 
-void MotionPlanner::ExtendTree(const int vid, const double sto[])
+void MotionPlanner::ExtendTree(int vid, const double sto[])
 {
-    // Get qNear state
-    std::vector<double> qNear(2,0);
-    qNear[0] = m_vertices[vid]->m_state[0];
-    qNear[1] = m_vertices[vid]->m_state[1];
-
-    // Get step size vector in direction of sto
     double step = m_simulator->GetDistOneStep();
-    std::vector<double> stateDir(2, 0);
-    stateDir[0] = sto[0] - qNear[0];
-    stateDir[1] = sto[1] - qNear[1];
-    ToUnitVector(&stateDir);
-    stateDir[0] *= step;
-    stateDir[1] *= step;
-
-    std::vector<double> qNew = qNear;
-    qNew[0] += stateDir[0];
-    qNew[1] += stateDir[1];
-
-    m_simulator->SetRobotCenter(qNew[0], qNew[1]);
-
-    // Only add qNew to tree if it's a valid state (no collision)
-    if (m_simulator->IsValidState())
+    // Get qNear state
+    while(getDistanceBetweenPoints(sto[0], sto[1], m_vertices[vid]->m_state[0], m_vertices[vid]->m_state[1]) > 2)
     {
-        if (m_simulator->HasRobotReachedGoal())
+
+        std::vector<double> qNear(2,0);
+        qNear[0] = m_vertices[vid]->m_state[0];
+        qNear[1] = m_vertices[vid]->m_state[1];
+
+        // Get step size vector in direction of sto
+        std::vector<double> stateDir(2, 0);
+        stateDir[0] = sto[0] - qNear[0];
+        stateDir[1] = sto[1] - qNear[1];
+        ToUnitVector(&stateDir);
+        stateDir[0] *= step;
+        stateDir[1] *= step;
+
+        std::vector<double> qNew = qNear;
+        qNew[0] += stateDir[0];
+        qNew[1] += stateDir[1];
+
+        m_simulator->SetRobotCenter(qNew[0], qNew[1]);
+
+        // Only add qNew to tree if it's a valid state (no collision)
+        if (m_simulator->IsValidState())
         {
-            AddVertex(qNew, vid, Vertex::TYPE_GOAL);
+            if (m_simulator->HasRobotReachedGoal())
+            {
+                AddVertex(qNew, vid, Vertex::TYPE_GOAL);
+            }
+            else
+            {
+                AddVertex(qNew, vid);
+            }
+            vid = vid + 1;
         }
         else
         {
-            AddVertex(qNew, vid);
+            return;
         }
     }
 }
-
-void getRandomState(Simulator * const simulator, double s[])
+bool isAlreadyAVertex(double s[], std::vector<Vertex *> vertices)
+{
+    for(int i = 0; i < vertices.size(); i++)
+    {
+        double vX = vertices[i] ->m_state[0];
+        double vY = vertices[i] ->m_state[1];
+        double distance = getDistanceBetweenPoints(s[0], s[1], vX, vY) ;
+        
+        if(distance < 2)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+void getRandomState(Simulator * const simulator, double s[], std::vector<Vertex *> vertices)
 {
     int rand = getRandomInteger(1, 10);
     if(rand == getRandomInteger(1, 10)) //get around goal region 10%
@@ -102,12 +125,17 @@ void getRandomState(Simulator * const simulator, double s[])
         double goalCenterX = simulator ->GetGoalCenterX();
         double goalCenterY = simulator ->GetGoalCenterY();
         double radius = simulator ->GetGoalRadius();
-        s[0] = PseudoRandomUniformReal(goalCenterX - radius, goalCenterX + radius);
-        s[1] = PseudoRandomUniformReal(goalCenterY - radius, goalCenterY + radius);
+        
+        do{
+           s[0] = PseudoRandomUniformReal(goalCenterX - radius, goalCenterX + radius);
+           s[1] = PseudoRandomUniformReal(goalCenterY - radius, goalCenterY + radius);
+        }while(isAlreadyAVertex(s, vertices));
     }
     else //get random state 90%
     {
-        simulator ->SampleState(s);
+        do{
+            simulator ->SampleState(s);
+        }while(isAlreadyAVertex(s, vertices));
     }
 }
 
@@ -117,7 +145,7 @@ void MotionPlanner::ExtendRandom(void)
     StartTime(&clk);
 
     double sto[2];
-    getRandomState(m_simulator, sto);
+    getRandomState(m_simulator, sto, m_vertices);
     
     int vid = getRandomInteger(0, m_vertices.size() - 1);
     ExtendTree(vid, sto);
@@ -131,7 +159,7 @@ void MotionPlanner::ExtendRRT(void)
     StartTime(&clk);
  
     double sto[2];
-    getRandomState(m_simulator, sto);
+    getRandomState(m_simulator, sto, m_vertices);
 
     int vid;
     double shortestDistance = -1;
@@ -159,7 +187,8 @@ void MotionPlanner::ExtendEST(void)
 
     //your code
     double sto[2];
-    getRandomState(m_simulator, sto);
+    getRandomState(m_simulator, sto, m_vertices);
+    
     std::vector<double> weights(m_vertices.size(), 0);
     double weightSum = 0;
 
@@ -172,11 +201,10 @@ void MotionPlanner::ExtendEST(void)
 
     //TODO: rand should include 0 and go just up to weightSum but not including
     double rand = PseudoRandomUniformReal(0, weightSum);
-    std::cout << "Chosen rand (0-" << weightSum << "): " << rand;
     int vid = -1;
 
     //UNCOMMENT ARROW SECTIONS TO SELECT RANDOM STARTING POINT IN FOR LOOP
-    //int start = getRandomInteger(0, m_vertices.size() - 1);    <-------
+    int start = getRandomInteger(0, m_vertices.size() - 1);   
 
     for (int i = 0; i < m_vertices.size(); i++)
     {
@@ -190,29 +218,25 @@ void MotionPlanner::ExtendEST(void)
         rand -= weight;
     }
 
-//    if (vid == -1)                                             <-------
-//    {
-//        for (int i = 0; i < start; i++)
-//        {
-//            double weight = weights[i];
-//
-//            if (rand < weight)
-//            {
-//                vid = i;
-//                break;
-//            }
-//            rand -= weight;
-//        }
-//    }
+    if (vid == -1)                                             
+    {
+        for (int i = 0; i < start; i++)
+        {
+            double weight = weights[i];
+
+            if (rand < weight)
+            {
+                vid = i;
+                break;
+            }
+            rand -= weight;
+        }
+    }
 
     if (vid == -1)
     {
-        std::cout << ", DID NOT BREAK";
         vid == m_vertices.size() - 1;
     }
-
-    std::cout << ", chose vid " << vid << " with " << m_vertices[vid]->m_nchildren << " children." << std::endl;
-
     ExtendTree(vid, sto);
 //end code
 
@@ -225,7 +249,30 @@ void MotionPlanner::ExtendMyApproach(void)
     Clock clk;
     StartTime(&clk);
  
+    const int c_MAX_NODES = 2;
 //your code
+    // going with balanced tree. Each node should have at most MAX_NODES
+    double sto[2];
+    getRandomState(m_simulator, sto, m_vertices);
+
+    int vid;
+    double shortestDistance = -1;
+    for(int i = 0; i < m_vertices.size(); i++)
+    {
+        if(m_vertices[i] ->m_nchildren < c_MAX_NODES)
+        {
+            double distance = getDistanceBetweenPoints(sto[0], sto[1],
+                                                       m_vertices[i] ->m_state[0],
+                                                       m_vertices[i] ->m_state[1]);
+            if(shortestDistance == -1 || distance < shortestDistance)
+            {
+                vid = i;
+                shortestDistance = distance;
+            }
+        }
+    }
+    ExtendTree(vid, sto);
+    
     
     m_totalSolveTime += ElapsedTime(&clk);
 }
