@@ -3,6 +3,8 @@
 #include "MyTimer.hpp"
 #include <cstring>
 #include <iostream>
+#include <cstdlib>
+#include <ctime>
 
 MotionPlanner::MotionPlanner(Simulator * const simulator)
 {
@@ -234,7 +236,7 @@ void MotionPlanner::ExtendMyApproach(void)
     Clock clk;
     StartTime(&clk);
  
-    const int c_MAX_NODES = 2;
+    const int c_MAX_NODES = 10;
 //your code
     // going with balanced tree. Each node should have at most MAX_NODES
     double sto[2];
