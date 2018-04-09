@@ -14,6 +14,7 @@ MotionPlanner::MotionPlanner(Simulator * const simulator)
     AddVertex(robot, -1);
     m_vidAtGoal = -1;
     m_totalSolveTime = 0;
+    srand(time(NULL));
     const double c_MIN_THRESHOLD = 2;
 }
 
@@ -60,27 +61,33 @@ int getRandomInteger(int min, int max)
 
 void MotionPlanner::ExtendTree(int vid, const double sto[])
 {
-    double step = m_simulator->GetDistOneStep();
     // Get qNear state
-    while(getDistanceBetweenPoints(sto[0], sto[1], m_vertices[vid]->m_state[0], m_vertices[vid]->m_state[1]) > 2)
+    std::vector<double> qNear(2,0);
+    qNear[0] = m_vertices[vid]->m_state[0];
+    qNear[1] = m_vertices[vid]->m_state[1];
+
+    // Get step size vector in direction of sto
+    double step = m_simulator->GetDistOneStep();
+    std::vector<double> stateDir(2, 0);
+    stateDir[0] = sto[0] - qNear[0];
+    stateDir[1] = sto[1] - qNear[1];
+    ToUnitVector(&stateDir);
+    stateDir[0] *= step;
+    stateDir[1] *= step;
+
+    bool done = false;
+    std::vector<double> qNew = qNear;
+    double distToSto = getDistanceBetweenPoints(qNew[0], qNew[1],
+                                                sto[0], sto[1]); 
+
+    while (!done && distToSto > step)
     {
-
-        std::vector<double> qNear(2,0);
-        qNear[0] = m_vertices[vid]->m_state[0];
-        qNear[1] = m_vertices[vid]->m_state[1];
-
-        // Get step size vector in direction of sto
-        std::vector<double> stateDir(2, 0);
-        stateDir[0] = sto[0] - qNear[0];
-        stateDir[1] = sto[1] - qNear[1];
-        ToUnitVector(&stateDir);
-        stateDir[0] *= step;
-        stateDir[1] *= step;
-
-        std::vector<double> qNew = qNear;
         qNew[0] += stateDir[0];
         qNew[1] += stateDir[1];
+        distToSto = getDistanceBetweenPoints(qNew[0], qNew[1],
+                                             sto[0], sto[1]);
 
+        // Only add qNew to tree if it's a valid state
         m_simulator->SetRobotCenter(qNew[0], qNew[1]);
 
         // Only add qNew to tree if it's a valid state (no collision)
@@ -89,34 +96,20 @@ void MotionPlanner::ExtendTree(int vid, const double sto[])
             if (m_simulator->HasRobotReachedGoal())
             {
                 AddVertex(qNew, vid, Vertex::TYPE_GOAL);
+                done = true;
             }
             else
             {
                 AddVertex(qNew, vid);
             }
-            vid = vid + 1;
         }
         else
         {
-            return;
+            done = true;
         }
     }
 }
-bool isAlreadyAVertex(double s[], std::vector<Vertex *> vertices)
-{
-    for(int i = 0; i < vertices.size(); i++)
-    {
-        double vX = vertices[i] ->m_state[0];
-        double vY = vertices[i] ->m_state[1];
-        double distance = getDistanceBetweenPoints(s[0], s[1], vX, vY) ;
-        
-        if(distance < 2)
-        {
-            return true;
-        }
-    }
-    return false;
-}
+
 void getRandomState(Simulator * const simulator, double s[], std::vector<Vertex *> vertices)
 {
     int rand = getRandomInteger(1, 10);
@@ -126,16 +119,12 @@ void getRandomState(Simulator * const simulator, double s[], std::vector<Vertex 
         double goalCenterY = simulator ->GetGoalCenterY();
         double radius = simulator ->GetGoalRadius();
         
-        do{
-           s[0] = PseudoRandomUniformReal(goalCenterX - radius, goalCenterX + radius);
-           s[1] = PseudoRandomUniformReal(goalCenterY - radius, goalCenterY + radius);
-        }while(isAlreadyAVertex(s, vertices));
+        s[0] = PseudoRandomUniformReal(goalCenterX - radius, goalCenterX + radius);
+        s[1] = PseudoRandomUniformReal(goalCenterY - radius, goalCenterY + radius);
     }
     else //get random state 90%
     {
-        do{
-            simulator ->SampleState(s);
-        }while(isAlreadyAVertex(s, vertices));
+        simulator ->SampleState(s);
     }
 }
 
@@ -179,7 +168,6 @@ void MotionPlanner::ExtendRRT(void)
     m_totalSolveTime += ElapsedTime(&clk);
 }
 
-
 void MotionPlanner::ExtendEST(void)
 {
     Clock clk;
@@ -199,11 +187,8 @@ void MotionPlanner::ExtendEST(void)
         weightSum += weights[i];
     }
 
-    //TODO: rand should include 0 and go just up to weightSum but not including
     double rand = PseudoRandomUniformReal(0, weightSum);
     int vid = -1;
-
-    //UNCOMMENT ARROW SECTIONS TO SELECT RANDOM STARTING POINT IN FOR LOOP
     int start = getRandomInteger(0, m_vertices.size() - 1);   
 
     for (int i = 0; i < m_vertices.size(); i++)
