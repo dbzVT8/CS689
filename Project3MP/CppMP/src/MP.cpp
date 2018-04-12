@@ -51,16 +51,19 @@ void ToUnitVector(std::vector<double> *v)
     }
 }
 
+//Returns the euclidean distance between two points
 double getDistanceBetweenPoints(double x1, double y1, double x2, double y2)
 {
     return sqrt(pow(x2 - x1, 2) + pow(y2 - y1,2));
 }
 
+//Gets a random integer beteween min and max inclusive
 int getRandomInteger(int min, int max)
 {
     return min + (rand() % (max - min + 1));
 }
 
+//Extends the tree from vid to sto getting all valid intermediate points in between
 void MotionPlanner::ExtendTree(int vid, const double sto[])
 {
     // Get qNear state
@@ -112,6 +115,7 @@ void MotionPlanner::ExtendTree(int vid, const double sto[])
     }
 }
 
+//Samples a random state, 10% from the goal area, the other 90% from the entire workspace
 void getRandomState(Simulator * const simulator, double s[], std::vector<Vertex *> vertices)
 {
     int rand = getRandomInteger(1, 10);
