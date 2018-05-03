@@ -15,8 +15,8 @@ def Multi_Point2Point():
     GOALS_1 = [(-1,-1,4),(1,1,2)]
     GOALS_2 = [(1,-1,2),(-1,1,4)]
     # Define the quadcopters
-    QUADCOPTERS={'q1':{'position':[1,0,4],'orientation':[0,0,0],'L':0.3,'r':0.1,'prop_size':[10,4.5],'weight':1.2},
-        'q2':{'position':[-1,0,4],'orientation':[0,0,0],'L':0.15,'r':0.05,'prop_size':[6,4.5],'weight':0.7}}
+    QUADCOPTERS={'q1':{'position':[1,0,4],'orientation':[0,0,0],'L':0.15,'r':0.1,'prop_size':[5,4.5],'weight':1},
+        'q2':{'position':[-1,0,4],'orientation':[0,0,0],'L':0.15,'r':0.1,'prop_size':[5,4.5],'weight':1}}
     # Controller parameters
     CONTROLLER_1_PARAMETERS = {'Motor_limits':[4000,9000],
                         'Tilt_limits':[-10,10],
