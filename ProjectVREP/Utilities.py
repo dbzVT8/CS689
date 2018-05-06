@@ -147,7 +147,7 @@ def getCubeGraphRobots():
     pt1.id = park1.id
     pt2 = Point(4, 3, PARKING)
     pt2.id = park3.id
-    return [Robot(State(pt1), State(pt2)), Robot(State(p2), State(p1))]
+    return [Robot(State(pt1), State(pt2)), Robot(State(pt2), State(pt1))]
 
 
 def timeToTraverse(point1, point2):
