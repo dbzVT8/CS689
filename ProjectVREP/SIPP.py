@@ -41,7 +41,7 @@ def getSuccessors(state, arrivalTime, robot):
         for safeInterval in intervalList:
             if ((safeInterval.endTime > (arrivalTime + dt)) and
                     (safeInterval.startTime < state.safeInterval.endTime)):
-                earliestArrival = getEarliestArrivalTime(intervalList)
+                earliestArrival = safeInterval.startTime#getEarliestArrivalTime(intervalList)
                 cost = calculateCost(Utilities.getMaxTime(graph), earliestArrival - arrivalTime)
                 if v.z != Utilities.PARKING or v.equals(robot.goal.point):
                     successor = State(v, safeInterval, earliestArrival, cost)
@@ -77,6 +77,7 @@ def updateSafeIntervals(path):
                     newSafeIntervals.append(interval)
             safeIntervalDict[pt1.id] = newSafeIntervals
 
+
 def SIPP(robot):
     OPEN = [OpenItem(robot.start, 0, getHeuristic(robot.start.point, robot.goal.point), 0)]
     PATH = []
@@ -85,6 +86,10 @@ def SIPP(robot):
 
     while not robot.goal.point.visited:
         smallestEValue = getItemWithSmallestEValue(OPEN)
+        print(smallestEValue.state.point)
+        print("Start time: " + str(smallestEValue.state.safeInterval.startTime) + "| end time: " + str(smallestEValue.state.safeInterval.endTime))
+        print()
+        smallestEValue.state.point.visited = True
         PATH.append(smallestEValue)
         if (smallestEValue.state.point.equals(robot.goal.point)):
             robot.goal.point.visited = True
@@ -98,7 +103,7 @@ def SIPP(robot):
                 s.lowestCost = s.earliestArrival = Utilities.INFINITY
             if ((s.lowestCost > smallestEValue.cost + s.cost) or
                     (s.earliestArrival > s.arrivalTime)):
-                s.point.visited = True
+
                 s.lowestCost = min(smallestEValue.cost + s.cost, s.lowestCost)
                 s.earliestArrival = min(s.earliestArrival, s.arrivalTime)
                 heuristic = getHeuristic(s.point, robot.goal.point)
@@ -108,8 +113,11 @@ def SIPP(robot):
                 #print("\tHeuristic: " + str(heuristic))
 
                 NEW_OPEN = []
+
                 for item in OPEN:
-                    if(not (item.state.point.equals(s.point) and item.cost >= s.lowestCost and item.state.arrivalTime >= s.earliestArrival)):
+                    if(not (item.state.point.equals(s.point) and
+                            item.cost >= s.lowestCost and
+                            item.state.arrivalTime >= s.earliestArrival)):
                         NEW_OPEN.append(item)
 
                 OPEN = NEW_OPEN

@@ -136,11 +136,7 @@ def getCubeGraph():
              Edge(p5, p6), Edge(p5, p7), Edge(p5, p5),
              Edge(p6, p8), Edge(p6, p6),
              Edge(p7, p8), Edge(p7, p7),
-             Edge(p8, p8),
-             Edge(park1, park1),
-             Edge(park2, park2),
-             Edge(park3, park3),
-             Edge(park4, park4)]
+             Edge(p8, p8)]
 
     return Graph(edges, [p1, p2, p3, p4, p5, p6, p7, p8, park1, park2, park3, park4])
 
@@ -154,10 +150,10 @@ def getCubeGraphRobots():
     pt3.id = park3.id
     pt4 = Point(-4, 3, PARKING)
     pt4.id = park4.id
-    return [Robot(State(Point.copy(pt1)), State(Point.copy(pt4))),
+    return [Robot(State(Point.copy(pt1)), State(Point.copy(pt2))),
             #Robot(State(Point.copy(pt3)), State(Point.copy(pt1))),
             #Robot(State(Point.copy(pt4)), State(Point.copy(pt2))),
-            Robot(State(Point.copy(pt4)), State(Point.copy(pt1)))]
+            Robot(State(Point.copy(pt2)), State(Point.copy(pt1)))]
 
 
 def timeToTraverse(point1, point2):
