@@ -3,7 +3,6 @@ import math
 INFINITY = float('inf')
 ROBOT_VELOCITY = 0.5
 ROBOT_DIAMETER = 0.5
-pointIdCounter = 1
 
 
 class SafeInterval(object):
@@ -21,16 +20,19 @@ class SafeInterval(object):
 class Point(object):
     # Creates a point on a coordinate plane with values x and y.
 
-    def __init__(self, x, y, z, visited=False):
+    def __init__(self, x, y, z, visited=False, id = 0):
         # Defines x and y variables
         self.x = x
         self.y = y
         self.z = z
         self.visited = visited
-        self.id = 0
+        self.id = id
+
+    def copy(point):
+        return Point(point.x, point.y, point.z, point.visited, point.id)
 
     def __str__(self):
-        return "Point: (%s,%s,%s)" % (self.x, self.y, self.z)
+        return "Point: ID: %s (%s,%s,%s)" % (self.id, self.x, self.y, self.z)
 
     def distance(self, other):
         dx = self.x - other.x
@@ -39,7 +41,7 @@ class Point(object):
         return math.sqrt(dx * dx + dy * dy + dz * dz)
 
     def equals(self, other):
-        return self.distance(other) == 0
+        return self.x == other.x and self.y == other.y and self.z == other.z
 
 
 class State(object):
@@ -88,8 +90,8 @@ class Graph(object):
     def __init__(self, edges=[], points=[]):
         self.edges = edges
         self.points = points
+        pointIdCounter = 1
         for point in points:
-            global pointIdCounter
             point.id = pointIdCounter
             pointIdCounter += 1
 
@@ -112,12 +114,13 @@ ROAD = .2
 AIRWAY = 5
 
 p1 = Point(-3, -3, ROAD)
-park1 = Point(-4, -3, PARKING)
 p2 = Point(3, -3, ROAD)
-park2 = Point(4, -3, PARKING)
 p3 = Point(3, 3, ROAD)
-park3 = Point(4, 3, PARKING)
 p4 = Point(-3, 3, ROAD)
+
+park1 = Point(-4, -3, PARKING)
+park2 = Point(4, -3, PARKING)
+park3 = Point(4, 3, PARKING)
 park4 = Point(-4, 3, PARKING)
 
 p5 = Point(-3, 3, AIRWAY)
@@ -145,9 +148,16 @@ def getCubeGraph():
 def getCubeGraphRobots():
     pt1 = Point(-4, -3, PARKING)
     pt1.id = park1.id
-    pt2 = Point(4, 3, PARKING)
-    pt2.id = park3.id
-    return [Robot(State(pt1), State(pt2)), Robot(State(pt2), State(pt1))]
+    pt2 = Point(4, -3, PARKING)
+    pt2.id = park2.id
+    pt3 = Point(4, 3, PARKING)
+    pt3.id = park3.id
+    pt4 = Point(-4, 3, PARKING)
+    pt4.id = park4.id
+    return [Robot(State(Point.copy(pt1)), State(Point.copy(pt3))),
+            Robot(State(Point.copy(pt3)), State(Point.copy(pt1))),
+            Robot(State(Point.copy(pt4)), State(Point.copy(pt2))),
+            Robot(State(Point.copy(pt2)), State(Point.copy(pt4)))]
 
 
 def timeToTraverse(point1, point2):
