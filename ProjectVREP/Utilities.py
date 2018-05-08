@@ -56,10 +56,11 @@ class State(object):
 
 
 class Edge(object):
-    def __init__(self, p1, p2):
+    def __init__(self, p1, p2, id = 0):
         # Defines x and y variables
         self.point1 = p1
         self.point2 = p2
+        self.id = id
 
 
 class Graph(object):
@@ -81,6 +82,12 @@ class Graph(object):
                 neighbors.append(edge)
         return neighbors
 
+    def getEdge(self, point1, point2):
+        for edge in self.edges:
+            if ((edge.point2.equals(point1) and edge.point1.equals(point2))
+                    or( edge.point1.equals(point1) and edge.point2.equals(point2))):
+                return edge
+
     def getGraphPointFromPoint(self, point):
         for p in self.points:
             if (p.equals(point)):
@@ -91,9 +98,14 @@ class Graph(object):
         self.edges = edges
         self.points = points
         pointIdCounter = 1
+        edgeIdCounter = 1000
         for point in points:
             point.id = pointIdCounter
             pointIdCounter += 1
+
+        for edge in edges:
+            edge.id = edgeIdCounter
+            edgeIdCounter += 1
 
 
 class Robot(object):
@@ -110,23 +122,28 @@ class Robot(object):
 
 
 PARKING = 0
-ROAD = .2
-AIRWAY = 5
+ROAD = 0.2
+AIRWAY = 2.2
 
-p1 = Point(-3, -3, ROAD)
-p2 = Point(3, -3, ROAD)
-p3 = Point(3, 3, ROAD)
-p4 = Point(-3, 3, ROAD)
+p1 = Point(-.5, -.5, ROAD)
+p2 = Point(.5, -.5, ROAD)
+p3 = Point(.5, .5, ROAD)
+p4 = Point(-.5, .5, ROAD)
 
-park1 = Point(-4, -3, PARKING)
-park2 = Point(4, -3, PARKING)
-park3 = Point(4, 3, PARKING)
-park4 = Point(-4, 3, PARKING)
+park1 = Point(-2, -1, PARKING)
+park2 = Point(2, -1, PARKING)
+park3 = Point(2, 1, PARKING)
+park4 = Point(-2, 1, PARKING)
 
-p5 = Point(-3, 3, AIRWAY)
-p6 = Point(3, 3, AIRWAY)
-p7 = Point(-3, -3, AIRWAY)
-p8 = Point(3, -3, AIRWAY)
+p5 = Point(-1, 1, AIRWAY)
+p6 = Point(1, 1, AIRWAY)
+p7 = Point(-1, -1, AIRWAY)
+p8 = Point(1, -1, AIRWAY)
+
+p9 = Point(-1,0,ROAD)
+p10 = Point(1,0,ROAD)
+p11 = Point(0,1,ROAD)
+p12 = Point(0,-1,ROAD)
 
 def getCubeGraph():
     edges = [Edge(p1, p2), Edge(p1, p4), Edge(p1, p7), Edge(p1, park1), Edge(p1, p1),
@@ -138,21 +155,33 @@ def getCubeGraph():
              Edge(p7, p8), Edge(p7, p7),
              Edge(p8, p8)]
 
-    return Graph(edges, [p1, p2, p3, p4, p5, p6, p7, p8, park1, park2, park3, park4])
+    return Graph(edges, [p1, p2, p3, p4, p5, p6, p7, p8, p9,p10,p11,p12,park1, park2, park3, park4])
+
+
+def getSmallSquareGraph():
+    edges = [Edge(p1, p9), Edge(p1, p12), Edge(p1,p1), Edge(park1, p1),
+             Edge(p12, p2), Edge(p12,p12),
+             Edge(p2, p10), Edge(p2,p2), Edge(park2, p2),
+             Edge(p10,p3), Edge(p3,p3), Edge(park3, p3),
+             Edge(p11, p4), Edge(p11, p11),
+             Edge(p4, p9), Edge(p4,p4), Edge(park4,p4),
+             Edge(p9,p9)]
+
+    return Graph(edges, [p1, p2, p3, p4, p5, p6, p7, p8, p9,p10,p11,p12,park1, park2, park3, park4])
 
 
 def getCubeGraphRobots():
-    pt1 = Point(-4, -3, PARKING)
+    pt1 = Point(-2, -1, PARKING)
     pt1.id = park1.id
-    pt2 = Point(4, -3, PARKING)
+    pt2 = Point(2, -1, PARKING)
     pt2.id = park2.id
-    pt3 = Point(4, 3, PARKING)
+    pt3 = Point(2, 1, PARKING)
     pt3.id = park3.id
-    pt4 = Point(-4, 3, PARKING)
+    pt4 = Point(-2, 1, PARKING)
     pt4.id = park4.id
     return [Robot(State(Point.copy(pt1)), State(Point.copy(pt2))),
-            #Robot(State(Point.copy(pt3)), State(Point.copy(pt1))),
-            #Robot(State(Point.copy(pt4)), State(Point.copy(pt2))),
+            Robot(State(Point.copy(pt3)), State(Point.copy(pt1))),
+            Robot(State(Point.copy(pt4)), State(Point.copy(pt2))),
             Robot(State(Point.copy(pt2)), State(Point.copy(pt1)))]
 
 
@@ -175,8 +204,43 @@ def initGlobalSafeIntervals(graph):
         safeIntervalDict[pt.id] = [SafeInterval(0, INFINITY)]
     return safeIntervalDict
 
+def initGlobalEdgeSafeIntervals(graph):
+    safeIntervalEdgeDict = {}
+    for edge in graph.edges:
+        safeIntervalEdgeDict[edge.id] = [SafeInterval(0, INFINITY)]
+    return safeIntervalEdgeDict
+
 def printSafeIntervals(safeIntervals):
     for id, intervals in safeIntervals.iteritems():
         print str(id),
         for interval in intervals:
             print"\t[" + str(interval.startTime) + "," + str(interval.endTime) + "] "
+
+
+class OpenItem(object):
+    def __init__(self, state, cost, heuristic, startTime):
+        self.state = state
+        self.cost = cost
+        self.heuristic = heuristic
+        self.startTime = startTime
+
+def getHeuristic(point1, point2):
+    distance = point1.distance(point2)
+    return distance
+
+def getItemWithSmallestEValue(list):
+    itemSmallestEValue = list[0]
+    for item in list:
+        if((item.heuristic + item.cost) < (itemSmallestEValue.heuristic + itemSmallestEValue.cost)):
+            itemSmallestEValue = item
+    return itemSmallestEValue
+
+def getEarliestArrivalTime(intervalList):
+    earliestArrival = INFINITY
+    for interval in intervalList:
+        if interval.startTime < earliestArrival:
+            earliestArrival = interval.startTime
+    return earliestArrival
+
+def calculateCost(maxTime, arrivalTimeDiff):
+    return arrivalTimeDiff/maxTime

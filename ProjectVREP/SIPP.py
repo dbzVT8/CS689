@@ -1,52 +1,6 @@
-from Utilities import Point
-from Utilities import Graph
-from Utilities import State
-from Utilities import SafeInterval
+from Utilities import *
 import Utilities
 
-
-class OpenItem(object):
-    def __init__(self, state, cost, heuristic, startTime):
-        self.state = state
-        self.cost = cost
-        self.heuristic = heuristic
-        self.startTime = startTime
-
-def getHeuristic(point1, point2):
-    return point1.distance(point2)
-
-def getItemWithSmallestEValue(list):
-    itemSmallestEValue = list[0]
-    for item in list:
-        if((item.heuristic + item.cost) < (itemSmallestEValue.heuristic + itemSmallestEValue.cost)):
-            itemSmallestEValue = item
-    return itemSmallestEValue
-
-def getEarliestArrivalTime(intervalList):
-    earliestArrival = Utilities.INFINITY
-    for interval in intervalList:
-        if interval.startTime < earliestArrival:
-            earliestArrival = interval.startTime
-    return earliestArrival
-
-def calculateCost(maxTime, arrivalTimeDiff):
-    return arrivalTimeDiff/maxTime
-
-def getSuccessors(state, arrivalTime, robot):
-    successors = []
-    neighbors = graph.getNeighborPoints(state.point)
-    for v in neighbors:
-        intervalList = safeIntervalDict[v.id]
-        dt = Utilities.timeToTraverse(state.point, v)
-        for safeInterval in intervalList:
-            if ((safeInterval.endTime > (arrivalTime + dt)) and
-                    (safeInterval.startTime < state.safeInterval.endTime)):
-                earliestArrival = safeInterval.startTime#getEarliestArrivalTime(intervalList)
-                cost = calculateCost(Utilities.getMaxTime(graph), earliestArrival - arrivalTime)
-                if v.z != Utilities.PARKING or v.equals(robot.goal.point):
-                    successor = State(v, safeInterval, earliestArrival, cost)
-                    successors.append(successor)
-    return successors
 
 def updateSafeIntervals(path):
     totalElapsedTime = 0
@@ -77,10 +31,28 @@ def updateSafeIntervals(path):
                     newSafeIntervals.append(interval)
             safeIntervalDict[pt1.id] = newSafeIntervals
 
+def getSuccessors(state, arrivalTime, robot):
+    successors = []
+    neighbors = graph.getNeighborPoints(state.point)
+    for v in neighbors:
+        intervalList = safeIntervalDict[v.id]
+        dt = Utilities.timeToTraverse(state.point, v)
+        for safeInterval in intervalList:
+            if ((safeInterval.endTime > (arrivalTime + dt)) and
+                    (safeInterval.startTime < state.safeInterval.endTime)):
+                earliestArrival = safeInterval.startTime#getEarliestArrivalTime(intervalList)
+                print("Earliest Arrival: " + str(earliestArrival))
+                cost = calculateCost(Utilities.getMaxTime(graph), earliestArrival - arrivalTime)
+                if v.z != Utilities.PARKING or v.equals(robot.goal.point):
+                    successor = State(v, safeInterval, earliestArrival, cost)
+                    successors.append(successor)
+    return successors
+
 
 def SIPP(robot):
-    OPEN = [OpenItem(robot.start, 0, getHeuristic(robot.start.point, robot.goal.point), 0)]
     PATH = []
+    OPEN = [OpenItem(robot.start, 0, getHeuristic(robot.start.point, robot.goal.point), 0)]
+
     robot.start.lowestCost = 0
     robot.start.earliestArrival = 0
 
@@ -88,17 +60,15 @@ def SIPP(robot):
         smallestEValue = getItemWithSmallestEValue(OPEN)
         print(smallestEValue.state.point)
         print("Start time: " + str(smallestEValue.state.safeInterval.startTime) + "| end time: " + str(smallestEValue.state.safeInterval.endTime))
+        print("arrival: " + str(smallestEValue.state.arrivalTime))
         print()
         smallestEValue.state.point.visited = True
         PATH.append(smallestEValue)
         if (smallestEValue.state.point.equals(robot.goal.point)):
             robot.goal.point.visited = True
-        #print("")
-        #print("Current " + str(smallestEValue.state.point) + "->" + str(smallestEValue.state.cost))
         OPEN.remove(smallestEValue)
         successors = getSuccessors( smallestEValue.state, smallestEValue.startTime, robot)
         for s in successors:
-            #print("\tSuccessor " + str(s.point) + "->" + str(s.cost))
             if not s.point.visited:
                 s.lowestCost = s.earliestArrival = Utilities.INFINITY
             if ((s.lowestCost > smallestEValue.cost + s.cost) or
@@ -110,18 +80,17 @@ def SIPP(robot):
                 newItem = OpenItem(s, smallestEValue.cost + s.cost,
                                    smallestEValue.cost + s.cost +
                                    heuristic, s.arrivalTime)
-                #print("\tHeuristic: " + str(heuristic))
 
-                NEW_OPEN = []
+            OPEN.append(newItem)
+            NEW_OPEN = list(OPEN)
 
-                for item in OPEN:
-                    if(not (item.state.point.equals(s.point) and
-                            item.cost >= s.lowestCost and
-                            item.state.arrivalTime >= s.earliestArrival)):
-                        NEW_OPEN.append(item)
+            for item in NEW_OPEN:
+                if ((item.state.point.equals(s.point) and
+                         item.cost >= s.lowestCost and
+                         item.state.arrivalTime >= s.earliestArrival)):
+                    OPEN.remove(item)
 
-                OPEN = NEW_OPEN
-                OPEN.append(newItem)
+
     print("PATH:")
     for p in PATH:
         print(str(p.state.point))
