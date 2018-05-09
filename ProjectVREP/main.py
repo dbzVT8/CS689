@@ -1,4 +1,5 @@
 import vrep
+from datetime import datetime
 
 print ('Program started')
 vrep.simxFinish(-1) # just in case, close all opened connections
@@ -21,13 +22,16 @@ if clientID!=-1:
     ret,pos=vrep.simxGetObjectPosition(clientID, quad1, -1, vrep.simx_opmode_oneshot_wait)
     print "Position: (",round(pos[0], 2),round(pos[1], 2),round(pos[2], 2),")"
     
-    vrep.simxCallScriptFunction(clientID,'Init',vrep.sim_scripttype_childscript,'setPath',[],[35, 0.25, 0.25, 0.5, 0.5, 0.5, 0.25, 0.5, 0, 0.5, -0.25, 0.5, -0.5, 0.25, -0.5, 0, -0.5, -0.25, -0.5, -0.5, -0.5, -0.5, -0.25, -0.5, 0, -0.5, 0.25, -0.5, 0.5, -0.25, 0.25, 0, 0, 0.25, -0.25],[],emptyBuff,vrep.simx_opmode_oneshot_wait)
+    vrep.simxCallScriptFunction(clientID,'Init',vrep.sim_scripttype_childscript,'setPath',[],[41, 0.25, 0, 0.5, 0, 0.75, 0, 1, 0, 1.25, 0, 1.5, 0, 1.75, 0, 2, 0, 2.25, 0, 2.5, 0, 2.75, 0, 3, 0, 3.25, 0, 3.5, 0, 3.75, 0, 4, 0, 4.25, 0, 4.5, 0, 4.75, 0, 5, 0],[],emptyBuff,vrep.simx_opmode_oneshot_wait)
+    print "Start: ",str(datetime.now())
     
     # Wait until path completed:
     runningPath=True
     while runningPath:
         res,retInts,retFloats,retStrings,retBuffer=vrep.simxCallScriptFunction(clientID,'Init',vrep.sim_scripttype_childscript,'finished',[],[],[],emptyBuff,vrep.simx_opmode_oneshot_wait)
         runningPath=retInts[0]==0
+
+    print "End: ",str(datetime.now())
 
     # Stop simulation:
     vrep.simxStopSimulation(clientID,vrep.simx_opmode_oneshot_wait)
