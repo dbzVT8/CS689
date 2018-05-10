@@ -1,7 +1,9 @@
 import math
 
 INFINITY = float('inf')
-ROBOT_VELOCITY = 0.5
+ROBOT_VELOCITY = 0.763  #m/s
+SIM_TIMESTEP = 0.5  #s
+TIMESTEP_DIST = ROBOT_VELOCITY * SIM_TIMESTEP
 ROBOT_DIAMETER = 0.5
 
 
@@ -39,6 +41,13 @@ class Point(object):
         dy = self.y - other.y
         dz = self.z - other.z
         return math.sqrt(dx * dx + dy * dy + dz * dz)
+    
+    def unitVector(self, other):
+        dist = self.distance(other)
+        vector = [(self.x - other.x)/dist,
+                  (self.y - other.y)/dist,
+                  (self.z - other.z)/dist]
+        return vector
 
     def equals(self, other):
         return self.x == other.x and self.y == other.y and self.z == other.z
@@ -244,3 +253,43 @@ def getEarliestArrivalTime(intervalList):
 
 def calculateCost(maxTime, arrivalTimeDiff):
     return arrivalTimeDiff/maxTime
+
+def appendPointToPath(path, point):
+    path.append(point.x)
+    path.append(point.y)
+    path.append(point.z)
+
+def discretizePath(path):
+    newPath = []
+
+    for i, state in enumerate(path):
+        if (i > 0) and (i < len(path)):
+            pt1 = path[i-1].point
+            pt2 = state.point
+            dist = pt1.distance(pt2)
+            print("pt1: " + str(pt1) + ", pt2: " + str(pt2) + "-->" + str(dist))
+            if (dist > 0):
+                unit = pt2.unitVector(pt1)
+                numSteps = int(round(dist/ROBOT_VELOCITY/SIM_TIMESTEP))
+                
+                #Fill in timesteps that move the entire step distance
+                remainingDist = dist
+                stepPoint = pt1.copy()
+                for j in xrange(numSteps-1):
+                    stepPoint.x = stepPoint.x + unit[0]*TIMESTEP_DIST
+                    stepPoint.y = stepPoint.y + unit[1]*TIMESTEP_DIST
+                    stepPoint.z = stepPoint.z + unit[2]*TIMESTEP_DIST
+                    appendPointToPath(newPath, stepPoint)
+                    remainingDist = remainingDist - TIMESTEP_DIST
+                    
+                
+                #Fill in last timestep with remaining distance
+                stepPoint.x = stepPoint.x + unit[0]*remainingDist
+                stepPoint.y = stepPoint.y + unit[1]*remainingDist
+                stepPoint.z = stepPoint.z + unit[2]*remainingDist
+                appendPointToPath(newPath, stepPoint)
+            else:
+                appendPointToPath(newPath, pt2)
+    return newPath
+    
+    

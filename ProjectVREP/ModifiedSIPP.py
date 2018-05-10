@@ -14,12 +14,6 @@ def bestNodeOfThemAll(possibleNodes, localIntervalDict, goal, localEdgeIntervalD
             smallestCost = cost
     return smallestCostNode
 
-
-
-
-
-
-
 def getNextNode(lastVisitedNode, neighbors, elapsedTime, goal):
     possibleNodes = []
     localIntervalDict = {}
@@ -90,8 +84,6 @@ def SIPP(robot):
 
     return PATH
 
-
-
 safeIntervalDict = {}
 graph = Utilities.getCubeGraph()
 robots = Utilities.getCubeGraphRobots()
@@ -105,6 +97,11 @@ for robot in robots:
     #     #     point.visited = False
     print("")
     path = SIPP(robot)
+    discretizedPath = Utilities.discretizePath(path)
+    for i in xrange(0, len(discretizedPath), 3):
+        print("x: " + str(discretizedPath[i]) +
+              ", y: " + str(discretizedPath[i+1]) +
+              ", z: " + str(discretizedPath[i+2]))
     Utilities.printSafeIntervals(safeIntervalDict)
     counter = counter+1
 
