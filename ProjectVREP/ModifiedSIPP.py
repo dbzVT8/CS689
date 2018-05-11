@@ -1,11 +1,10 @@
-from Utilities import *
+import vrep
+from datetime import datetime
 import Utilities
 
-
-
 def bestNodeOfThemAll(possibleNodes, localIntervalDict, goal, localEdgeIntervalDict, lastVisited):
-    smallestCost = INFINITY #get the node with the smallest cost
-    smallestCostNode = 0
+    smallestCost = Utilities.INFINITY #get the node with the smallest cost
+    smallestCostNode = None
     for node in possibleNodes:
         edge = graph.getEdge(node.point, lastVisited.point)
         cost = len(localIntervalDict[node.point.id]) * len(localEdgeIntervalDict[edge.id]) * node.point.distance(goal.point)
@@ -20,7 +19,7 @@ def getNextNode(lastVisitedNode, neighbors, elapsedTime, goal):
     localEdgeIntervalDict = {}
     timeToPassNode = Utilities.ROBOT_DIAMETER/Utilities.ROBOT_VELOCITY #Time to get past a node
     for neighbor in neighbors:
-        timeToNeighbor = timeToTraverse(lastVisitedNode.point, neighbor) #time from last node to the neighbor
+        timeToNeighbor = Utilities.timeToTraverse(lastVisitedNode.point, neighbor) #time from last node to the neighbor
         safeIntervals = safeIntervalDict[neighbor.id] #get all safe intervals for the neighbor
         edge = graph.getEdge(neighbor, lastVisitedNode.point) #get the edge from last node to neighbor
         safeEdgeIntervals = safeEdgeIntervalDict[edge.id] #get the edge intervals
@@ -31,8 +30,8 @@ def getNextNode(lastVisitedNode, neighbors, elapsedTime, goal):
         isAdded = False
         for interval in safeIntervals:
             if interval.startTime <= start and interval.endTime >= end:
-                newSafeIntervals.append(SafeInterval(interval.startTime, start)) #the interval is good, split the existing interval
-                newSafeIntervals.append(SafeInterval(end, interval.endTime))
+                newSafeIntervals.append(Utilities.SafeInterval(interval.startTime, start)) #the interval is good, split the existing interval
+                newSafeIntervals.append(Utilities.SafeInterval(end, interval.endTime))
                 elapsedTime = end
                 isAdded = True #flag to show that an interval was indeed found
             else:
@@ -41,8 +40,8 @@ def getNextNode(lastVisitedNode, neighbors, elapsedTime, goal):
             isAdded = False
             for interval in safeEdgeIntervals:
                 if interval.startTime <= elapsedTime and interval.endTime >= elapsedTime + timeToNeighbor:
-                    newEdgeSafeIntervals.append(SafeInterval(interval.startTime, elapsedTime))#interval is good, split the existing edge interval
-                    newEdgeSafeIntervals.append(SafeInterval(elapsedTime + timeToNeighbor, interval.endTime))
+                    newEdgeSafeIntervals.append(Utilities.SafeInterval(interval.startTime, elapsedTime))#interval is good, split the existing edge interval
+                    newEdgeSafeIntervals.append(Utilities.SafeInterval(elapsedTime + timeToNeighbor, interval.endTime))
                     isAdded = True #flag to show that an interval was found
                 else:
                     newEdgeSafeIntervals.append(interval)
@@ -51,7 +50,7 @@ def getNextNode(lastVisitedNode, neighbors, elapsedTime, goal):
         if isAdded: #only if a valid edge & node interval was found
             localIntervalDict[neighbor.id] = newSafeIntervals
             localEdgeIntervalDict[edge.id] = newEdgeSafeIntervals
-            possibleNodes.append(State(neighbor, SafeInterval(), elapsedTime))
+            possibleNodes.append(Utilities.State(neighbor, Utilities.SafeInterval(), elapsedTime))
 
     bestNode = bestNodeOfThemAll(possibleNodes, localIntervalDict, goal, localEdgeIntervalDict, lastVisitedNode) #out of the nodes we found, pick the best
     safeIntervalDict[bestNode.point.id] = localIntervalDict[bestNode.point.id]
@@ -61,14 +60,14 @@ def getNextNode(lastVisitedNode, neighbors, elapsedTime, goal):
 
 
 def SIPP(robot):
-    PATH = [robot.start]
+    path = [robot.start]
     elapsedTime = 0
     robot.start.lowestCost = 0
     robot.start.earliestArrival = 0
 
     print(robot.start.point)
     while not robot.goal.point.visited:
-        lastVisitedNode = PATH[len(PATH) - 1] #get the last visited node
+        lastVisitedNode = path[len(path) - 1] #get the last visited node
         neighbors = graph.getNeighborPoints(lastVisitedNode.point) #get the neighbors of the node
         nextNodeInGraph = getNextNode(lastVisitedNode, neighbors, elapsedTime, robot.goal) #determine what the next node in the path should be
 
@@ -77,19 +76,91 @@ def SIPP(robot):
         if(nextNodeInGraph.point.equals(robot.goal.point)):
             robot.goal.point.visited = True
 
-        PATH.append(nextNodeInGraph)
-        print(nextNodeInGraph.point)
-        print("Elapsed Time: " + str(elapsedTime))
+        path.append(nextNodeInGraph)
 
+    return path
 
-    return PATH
 
 safeIntervalDict = {}
 graph = Utilities.getCubeGraph()
 robots = Utilities.getCubeGraphRobots()
 safeIntervalDict = Utilities.initGlobalSafeIntervals(graph)
 safeEdgeIntervalDict = Utilities.initGlobalEdgeSafeIntervals(graph)
-counter = 0
+
+print ('Program started')
+vrep.simxFinish(-1) # just in case, close all opened connections
+clientID=vrep.simxStart('127.0.0.1',19997,True,True,-500000,5) # Connect to V-REP, set a very large time-out for blocking commands
+if clientID!=-1:
+    print ('Connected to remote API server')
+
+    emptyBuff = bytearray()
+    
+    # Get robots
+    scriptNames = ["Init", "Init#0", "Init#1", "Init#2"]
+    robotNames = ["Quad", "Quad#0", "Quad#1", "Quad#2"]
+    robotPaths = []
+
+    # robots.remove(robots[2])
+    # robots.remove(robots[2])
+    for robot in robots:
+        path = Utilities.discretizePath(SIPP(robot))
+        path.insert(0, len(path))
+        robotPaths.append(path)
+
+    print "node"
+    Utilities.printSafeIntervals(safeIntervalDict)
+    print"Edge"
+    Utilities.printSafeIntervals(safeEdgeIntervalDict)
+
+    if len(robots) <= len(robotNames):
+        # Start the simulation:
+        vrep.simxStartSimulation(clientID,vrep.simx_opmode_oneshot_wait)
+
+        for i, robot in enumerate(robots):
+            vrep.simxCallScriptFunction(clientID,scriptNames[i],vrep.sim_scripttype_childscript,'setPath',[],robotPaths[i],[],emptyBuff,vrep.simx_opmode_oneshot_wait)
+
+        initializing = True
+        while initializing:
+            initializing = False
+            for i, robot in enumerate(robots):
+                ret,retInts,retFloats,retStrings,retBuffer = vrep.simxCallScriptFunction(clientID, scriptNames[i], vrep.sim_scripttype_childscript,
+                                                                                         'initialized', [], [], [], emptyBuff,
+                                                                                         vrep.simx_opmode_oneshot_wait)
+                if retInts[0] == 0:
+                    initializing = True
+                    break
+
+        for i, robot in enumerate(robots):
+            vrep.simxCallScriptFunction(clientID,scriptNames[i],vrep.sim_scripttype_childscript,'startSim',[],[],[],emptyBuff,vrep.simx_opmode_oneshot_wait)
+
+        print "Start: " + str(datetime.now())
+        
+        # Wait until path completed:
+        runningPath = True
+        while runningPath:
+            runningPath = False
+            for i, robot in enumerate(robots):
+                ret,retInts,retFloats,retStrings,retBuffer = vrep.simxCallScriptFunction(clientID, scriptNames[i],vrep.sim_scripttype_childscript,
+                                                                                         'finished',[],[],[],emptyBuff,
+                                                                                         vrep.simx_opmode_oneshot_wait)
+                if retInts[0] == 0:
+                    runningPath = True
+                    break
+    
+        print "End: " + str(datetime.now())
+    
+        # Stop simulation:
+        vrep.simxStopSimulation(clientID,vrep.simx_opmode_oneshot_wait)
+    
+        # Now close the connection to V-REP:
+        vrep.simxFinish(clientID)
+    else:
+        print "Error: Add " + str(len(robots) - len(robotNames)) + " more VREP robots!"
+else:
+    print ('Failed connecting to remote API server')
+print ('Program ended')
+
+"""counter = 0
 for robot in robots:
     print("")
     print("robot: " + str(counter) + " Start: " + str(robot.start.point) + " Goal: " + str(robot.goal.point))
@@ -103,16 +174,4 @@ for robot in robots:
               ", y: " + str(discretizedPath[i+1]) +
               ", z: " + str(discretizedPath[i+2]))
     Utilities.printSafeIntervals(safeIntervalDict)
-    counter = counter+1
-
-
-
-
-
-
-
-
-
-
-
-
+    counter = counter+1"""

@@ -1,7 +1,6 @@
 from Utilities import *
 import Utilities
 
-
 def updateSafeIntervals(path):
     totalElapsedTime = 0
     timeToPassNode = Utilities.ROBOT_DIAMETER/Utilities.ROBOT_VELOCITY

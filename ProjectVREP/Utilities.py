@@ -130,29 +130,25 @@ class Robot(object):
         self.currentLocation = point
 
 
-PARKING = 0
-ROAD = 0.2
-AIRWAY = 2.2
+PARKING = 0.2
+ROAD = 0.4
+AIRWAY = 2.4
 
-p1 = Point(-.5, -.5, ROAD)
-p2 = Point(.5, -.5, ROAD)
-p3 = Point(.5, .5, ROAD)
-p4 = Point(-.5, .5, ROAD)
+p1 = Point(-3, -3, ROAD)
+p2 = Point(3, -3, ROAD)
+p3 = Point(3, 3, ROAD)
+p4 = Point(-3, 3, ROAD)
 
-park1 = Point(-2, -1, PARKING)
-park2 = Point(2, -1, PARKING)
-park3 = Point(2, 1, PARKING)
-park4 = Point(-2, 1, PARKING)
+park1 = Point(-4, -3, PARKING)
+park2 = Point(4, -3, PARKING)
+park3 = Point(4, 3, PARKING)
+park4 = Point(-4, 3, PARKING)
 
-p5 = Point(-1, 1, AIRWAY)
-p6 = Point(1, 1, AIRWAY)
-p7 = Point(-1, -1, AIRWAY)
-p8 = Point(1, -1, AIRWAY)
+p5 = Point(-3, 3, AIRWAY)
+p6 = Point(3, 3, AIRWAY)
+p7 = Point(-3, -3, AIRWAY)
+p8 = Point(3, -3, AIRWAY)
 
-p9 = Point(-1,0,ROAD)
-p10 = Point(1,0,ROAD)
-p11 = Point(0,1,ROAD)
-p12 = Point(0,-1,ROAD)
 
 def getCubeGraph():
     edges = [Edge(p1, p2), Edge(p1, p4), Edge(p1, p7), Edge(p1, park1), Edge(p1, p1),
@@ -164,34 +160,38 @@ def getCubeGraph():
              Edge(p7, p8), Edge(p7, p7),
              Edge(p8, p8)]
 
-    return Graph(edges, [p1, p2, p3, p4, p5, p6, p7, p8, p9,p10,p11,p12,park1, park2, park3, park4])
+    return Graph(edges, [p1, p2, p3, p4, p5, p6, p7, p8, park1, park2, park3, park4])
 
-
-def getSmallSquareGraph():
-    edges = [Edge(p1, p9), Edge(p1, p12), Edge(p1,p1), Edge(park1, p1),
-             Edge(p12, p2), Edge(p12,p12),
-             Edge(p2, p10), Edge(p2,p2), Edge(park2, p2),
-             Edge(p10,p3), Edge(p3,p3), Edge(park3, p3),
-             Edge(p11, p4), Edge(p11, p11),
-             Edge(p4, p9), Edge(p4,p4), Edge(park4,p4),
-             Edge(p9,p9)]
-
-    return Graph(edges, [p1, p2, p3, p4, p5, p6, p7, p8, p9,p10,p11,p12,park1, park2, park3, park4])
 
 
 def getCubeGraphRobots():
-    pt1 = Point(-2, -1, PARKING)
+    pt1 = Point(-4, -3, PARKING)
     pt1.id = park1.id
-    pt2 = Point(2, -1, PARKING)
+    pt2 = Point(4, -3, PARKING)
     pt2.id = park2.id
-    pt3 = Point(2, 1, PARKING)
+    pt3 = Point(4, 3, PARKING)
     pt3.id = park3.id
-    pt4 = Point(-2, 1, PARKING)
+    pt4 = Point(-4, 3, PARKING)
     pt4.id = park4.id
-    return [Robot(State(Point.copy(pt1)), State(Point.copy(pt2))),
+    return [Robot(State(Point.copy(pt1)), State(Point.copy(pt3))),
             Robot(State(Point.copy(pt3)), State(Point.copy(pt1))),
             Robot(State(Point.copy(pt4)), State(Point.copy(pt2))),
-            Robot(State(Point.copy(pt2)), State(Point.copy(pt1)))]
+            Robot(State(Point.copy(pt2)), State(Point.copy(pt4)))]
+
+
+#Circle:
+    # pt1 = Point(-3, -2, PARKING)
+    # pt1.id = park1.id
+    # pt2 = Point(3, -2, PARKING)
+    # pt2.id = park2.id
+    # pt3 = Point(3, 2, PARKING)
+    # pt3.id = park3.id
+    # pt4 = Point(-3, 2, PARKING)
+    # pt4.id = park4.id
+    # return [Robot(State(Point.copy(pt2)), State(Point.copy(pt1))),
+    #         Robot(State(Point.copy(pt3)), State(Point.copy(pt2))),
+    #         Robot(State(Point.copy(pt4)), State(Point.copy(pt3))),
+    #         Robot(State(Point.copy(pt1)), State(Point.copy(pt4)))]
 
 
 def timeToTraverse(point1, point2):
@@ -260,14 +260,18 @@ def appendPointToPath(path, point):
     path.append(point.z)
 
 def discretizePath(path):
+    print("Path: ")
+    for state in path:
+        print(state.point)
     newPath = []
+    appendPointToPath(newPath, path[0].point)
 
     for i, state in enumerate(path):
         if (i > 0) and (i < len(path)):
             pt1 = path[i-1].point
             pt2 = state.point
             dist = pt1.distance(pt2)
-            print("pt1: " + str(pt1) + ", pt2: " + str(pt2) + "-->" + str(dist))
+
             if (dist > 0):
                 unit = pt2.unitVector(pt1)
                 numSteps = int(round(dist/ROBOT_VELOCITY/SIM_TIMESTEP))
@@ -290,6 +294,12 @@ def discretizePath(path):
                 appendPointToPath(newPath, stepPoint)
             else:
                 appendPointToPath(newPath, pt2)
+
+    # print("Discretized Path: ")
+    # for i in xrange(0, len(newPath), 3):
+    #     print("x: " + str(newPath[i]) +
+    #           ", y: " + str(newPath[i + 1]) +
+    #           ", z: " + str(newPath[i + 2]))
     return newPath
     
     
