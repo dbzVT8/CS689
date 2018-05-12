@@ -1,5 +1,6 @@
 import vrep
 from datetime import datetime
+import time
 import Utilities
 
 def bestNodeOfThemAll(possibleNodes, localIntervalDict, goal, localEdgeIntervalDict, lastVisited):
@@ -114,6 +115,7 @@ if clientID!=-1:
 
     if len(robots) <= len(robotNames):
         # Start the simulation:
+        time.sleep(5)
         vrep.simxStartSimulation(clientID,vrep.simx_opmode_oneshot_wait)
 
         for i, robot in enumerate(robots):
@@ -150,6 +152,7 @@ if clientID!=-1:
         print "End: " + str(datetime.now())
     
         # Stop simulation:
+        time.sleep(15)
         vrep.simxStopSimulation(clientID,vrep.simx_opmode_oneshot_wait)
     
         # Now close the connection to V-REP:
